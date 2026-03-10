@@ -320,9 +320,9 @@ textarea{resize:vertical;min-height:50px;}
 .empty-icon{font-size:1.8rem;margin-bottom:.35rem;}
 .empty-txt{font-size:.78rem;line-height:1.5;}
 .mob-nav{display:none;position:fixed;bottom:0;left:0;right:0;background:var(--surf);border-top:1px solid var(--brd);height:var(--tab-h);z-index:200;padding-bottom:env(safe-area-inset-bottom,0);}
-.mob-nav-inner{display:flex;height:100%;}
-.mnb{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;background:none;border:none;color:var(--mut);cursor:pointer;font-size:.58rem;font-family:'DM Sans',sans-serif;transition:color .18s;touch-action:manipulation;padding:0;}
-.mnb .ico{font-size:1.25rem;line-height:1;}
+.mob-nav-inner{display:flex;height:100%;overflow-x:auto;}
+.mnb{flex:1;min-width:44px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1px;background:none;border:none;color:var(--mut);cursor:pointer;font-size:.52rem;font-family:'DM Sans',sans-serif;transition:color .18s;touch-action:manipulation;padding:0;}
+.mnb .ico{font-size:1.1rem;line-height:1;}
 .mnb.active{color:var(--acc);}
 @media(max-width:900px){.cal-col{display:none;}.map-col{display:none;}.map-col.mob-show{display:flex;}.desk-nav{display:none;}.mob-nav{display:flex;}.main{padding-bottom:var(--tab-h);}.panel{flex:1;max-width:100%;}#toast{bottom:calc(var(--tab-h) + max(8px,env(safe-area-inset-bottom,0px)));}}
 @media(max-width:600px){header{padding:0 .75rem;}.hdr-date{font-size:.7rem;padding:3px 8px;}.panel-hd{padding:.65rem .9rem .4rem;}.scrollable{padding:.65rem .9rem;}.filter-bar{padding:.35rem .9rem;}.form-row{grid-template-columns:1fr;}.dp-grid{grid-template-columns:1fr;}}
@@ -619,7 +619,8 @@ textarea{resize:vertical;min-height:50px;}
     <button class="mnb active" onclick="mobSwitch('list',this)"><span class="ico">📋</span>Pedidos</button>
     <button class="mnb"        onclick="mobSwitch('form',this)"><span class="ico">➕</span>Nuevo</button>
     <button class="mnb"        onclick="mobSwitch('map',this)"><span class="ico">🗺️</span>Mapa</button>
-    <button class="mnb"        onclick="mobSwitch('optimizer',this)"><span class="ico">⚡</span>Ruta</button>
+    <button class="mnb"        onclick="mobSwitch('routes',this)"><span class="ico">📍</span>Rutas</button>
+    <button class="mnb"        onclick="mobSwitch('optimizer',this)"><span class="ico">⚡</span>Ruta opt.</button>
     <button class="mnb"        onclick="mobSwitch('clients',this)"><span class="ico">👥</span>Clientes</button>
     <button class="mnb"        onclick="mobSwitch('settings',this)"><span class="ico">⚙️</span>Config</button>
   </div>
@@ -1841,6 +1842,7 @@ function mobSwitch(tab,el){
   document.querySelectorAll('.mnb').forEach(b=>b.classList.remove('active'));
   el.classList.add('active');
   if(tab==='clients')loadClients();
+  if(tab==='routes')startTrackingMonitor();
 }
 
 // ════════════════════════════════════════════════════════
