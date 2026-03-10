@@ -268,19 +268,20 @@ def optimize(request):
         return JsonResponse({"error": "Punto de partida requerido"}, status=400)
 
     all_deliveries = load_json(settings.DELIVERIES_FILE)
-    all_clients = load_json(settings.CLIENTS_FILE)
-    clients_map = {c["phone"]: c for c in all_clients}
+    all_clients    = load_json(settings.CLIENTS_FILE)
+    clients_map    = {c["phone"]: c for c in all_clients}
 
     stops = []
     for d in all_deliveries:
-        if d.get("delivery_date") != date:
-            continue
-        if d.get("completed"):
-            continue
-        if driver_filter and driver and d.get("driver") != driver:
-            continue
+        if d.get("delivery_date") != date:           continue
+        if d.get("completed"):                       continue
+        if driver_filter and driver and d.get("driver") != driver: continue
 
         client = clients_map.get(d.get("client_phone", ""), {})
+
+        # Coordenadas: entrega primero, luego cliente
+        lat = d.get("lat") or client.get("lat")
+        lng = d.get("lng") or client.get("lng")
 
         stop_ref = (
             d.get("place_id")
@@ -295,12 +296,17 @@ def optimize(request):
             continue
 
         stop = {**d}
-        stop["route_ref"] = stop_ref
-
+        stop["route_ref"]         = stop_ref
+        stop["lat"]               = lat
+        stop["lng"]               = lng
+        stop["formatted_address"] = (
+            d.get("formatted_address") or d.get("address")
+            or client.get("formatted_address") or client.get("address", "")
+        )
         if not stop.get("name"):
             stop["name"] = client.get("name", "")
-        if not stop.get("address"):
-            stop["address"] = client.get("formatted_address") or client.get("address", "")
+        if not stop.get("reference"):
+            stop["reference"] = client.get("reference", "")
 
         stops.append(stop)
 
@@ -310,38 +316,62 @@ def optimize(request):
             status=404
         )
 
-    ordered = stops
+    # TSP nearest-neighbor usando lat/lng cuando están disponibles
+    stops_with_coords = [s for s in stops if s.get("lat") and s.get("lng")]
+    stops_without     = [s for s in stops if not (s.get("lat") and s.get("lng"))]
 
-    def encode_location(value):
-        if isinstance(value, str) and value.startswith("ChIJ"):
-            return f"place_id:{value}"
-        return value
+    if stops_with_coords and origin.get("lat") and origin.get("lng"):
+        ordered = nearest_neighbor_route(origin, stops_with_coords) + stops_without
+    else:
+        ordered = stops
 
-    origin_str = encode_location(origin_ref)
+    # Distancia total estimada
+    total_km = 0.0
+    if origin.get("lat") and ordered:
+        prev = origin
+        for s in ordered:
+            if s.get("lat") and s.get("lng"):
+                total_km += haversine(
+                    float(prev["lat"]), float(prev["lng"]),
+                    float(s["lat"]),    float(s["lng"])
+                )
+                prev = s
+    total_km = round(total_km, 2)
+
+    # Para la URL pública de Google Maps usar lat,lng o texto — NO place_id:ChIJ...
+    # place_id solo funciona en la JS API, no en URLs directas
+    def location_for_url(item):
+        """Devuelve lat,lng si están disponibles, si no texto de dirección."""
+        lat = item.get("lat")
+        lng = item.get("lng")
+        if lat and lng:
+            return f"{lat},{lng}"
+        return item.get("formatted_address") or item.get("address") or ""
+
+    origin_str = location_for_url(origin)
 
     if len(ordered) == 1:
-        dest_str = encode_location(ordered[0]["route_ref"])
+        dest_str      = location_for_url(ordered[0])
         waypoints_str = ""
     else:
-        dest_str = encode_location(ordered[-1]["route_ref"])
-        waypoints_str = "|".join(
-            encode_location(s["route_ref"]) for s in ordered[:-1]
-        )
+        dest_str      = location_for_url(ordered[-1])
+        waypoints_str = "|".join(location_for_url(s) for s in ordered[:-1])
 
+    import urllib.parse
     maps_url = (
         f"https://www.google.com/maps/dir/?api=1"
-        f"&origin={origin_str}"
-        f"&destination={dest_str}"
+        f"&origin={urllib.parse.quote(str(origin_str))}"
+        f"&destination={urllib.parse.quote(str(dest_str))}"
         f"&travelmode=driving"
     )
-
     if waypoints_str:
-        maps_url += f"&waypoints={waypoints_str}"
+        maps_url += f"&waypoints={urllib.parse.quote(waypoints_str)}"
 
     return JsonResponse({
-        "origin": origin,
-        "ordered": ordered,
-        "stops": len(ordered),
+        "origin":   origin,
+        "ordered":  ordered,
+        "stops":    len(ordered),
+        "total_km": total_km,
         "maps_url": maps_url,
     })
 
@@ -369,3 +399,55 @@ def config(request):
         cfg["google_maps_key"] = data["google_maps_key"]
     save_config(cfg)
     return JsonResponse(cfg)
+
+# ═══════════════════════════════════════════════════════════════════════════════
+#  GPS TRACKING
+# ═══════════════════════════════════════════════════════════════════════════════
+
+# Almacén en memoria: {driver: {lat, lng, trail: [[lat,lng],...], ts}}
+_gps_store = {}
+
+@csrf_exempt
+@require_http_methods(["POST"])
+def gps_update(request):
+    """El celular del repartidor envía su posición."""
+    data   = json.loads(request.body)
+    driver = data.get("driver", "").lower().strip()
+    lat    = data.get("lat")
+    lng    = data.get("lng")
+
+    if not driver or lat is None or lng is None:
+        return JsonResponse({"error": "driver, lat y lng requeridos"}, status=400)
+
+    prev = _gps_store.get(driver, {})
+    trail = prev.get("trail", [])
+
+    # Agregar punto al rastro (máx 200 puntos)
+    trail = trail + [[lat, lng]]
+    trail = trail[-200:]
+
+    _gps_store[driver] = {
+        "driver": driver,
+        "lat":    lat,
+        "lng":    lng,
+        "trail":  trail,
+        "ts":     datetime.now().isoformat(),
+    }
+    return JsonResponse({"ok": True})
+
+
+@require_http_methods(["GET"])
+def gps_status(request):
+    """La app de escritorio consulta posiciones de todos los repartidores."""
+    return JsonResponse(list(_gps_store.values()), safe=False)
+
+
+@csrf_exempt
+@require_http_methods(["POST"])
+def gps_clear(request):
+    """Borrar el rastro de un repartidor."""
+    data   = json.loads(request.body)
+    driver = data.get("driver", "").lower().strip()
+    if driver in _gps_store:
+        del _gps_store[driver]
+    return JsonResponse({"ok": True})
