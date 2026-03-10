@@ -1,0 +1,1606 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>RepartoTrack</title>
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@700;800&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<style>
+:root{
+  --bg:#0a0a0f; --surf:#13131a; --surf2:#1c1c28; --surf3:#22222f;
+  --brd:#2a2a3d; --brd2:#353550;
+  --acc:#f0e040; --acc2:#40c8f0; --acc3:#f04090; --grn:#40f090;
+  --txt:#e8e8f0; --mut:#6868a0; --mut2:#9090c0;
+  --jorge:#f0e040; --diego:#40c8f0; --otro:#f04090;
+  --nav-h:56px; --tab-h:52px;
+}
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent;}
+html,body{height:100%;overflow:hidden;font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--txt);}
+.shell{display:flex;flex-direction:column;height:100vh;height:100dvh;}
+header{background:var(--surf);border-bottom:1px solid var(--brd);display:flex;align-items:center;gap:.75rem;padding:0 1rem;height:var(--nav-h);flex-shrink:0;}
+.logo{font-family:'Syne',sans-serif;font-weight:800;font-size:1.1rem;white-space:nowrap;}
+.logo span{color:var(--acc);}
+.hdr-date{font-family:'Syne',sans-serif;font-size:.75rem;font-weight:700;color:var(--acc);background:rgba(240,224,64,.1);border:1px solid rgba(240,224,64,.25);border-radius:6px;padding:3px 10px;white-space:nowrap;margin-left:auto;}
+.desk-nav{display:flex;gap:3px;}
+.desk-nav .nb{background:transparent;border:1px solid transparent;color:var(--mut);font-family:'DM Sans',sans-serif;font-size:.8rem;padding:5px 12px;border-radius:6px;cursor:pointer;transition:all .18s;white-space:nowrap;}
+.desk-nav .nb:hover{background:var(--surf2);color:var(--txt);}
+.desk-nav .nb.active{background:var(--surf2);border-color:var(--acc);color:var(--acc);}
+.main{display:flex;flex:1;overflow:hidden;}
+.cal-col{width:240px;flex-shrink:0;background:var(--surf);border-right:1px solid var(--brd);display:flex;flex-direction:column;overflow:hidden;}
+.cal-hdr{padding:.7rem .9rem .4rem;border-bottom:1px solid var(--brd);display:flex;align-items:center;justify-content:space-between;}
+.cal-month{font-family:'Syne',sans-serif;font-weight:700;font-size:.85rem;text-transform:capitalize;}
+.cal-nav{display:flex;gap:3px;}
+.cal-nav button{background:var(--surf2);border:1px solid var(--brd);color:var(--txt);border-radius:5px;width:24px;height:24px;cursor:pointer;font-size:.82rem;display:flex;align-items:center;justify-content:center;transition:all .15s;}
+.cal-nav button:hover{border-color:var(--acc);color:var(--acc);}
+.cal-body{padding:.4rem .5rem .6rem;flex:1;overflow-y:auto;}
+.cal-wds{display:grid;grid-template-columns:repeat(7,1fr);margin-bottom:2px;}
+.cal-wd{text-align:center;font-size:.56rem;font-weight:700;color:var(--mut);text-transform:uppercase;padding:2px 0;}
+.cal-days{display:grid;grid-template-columns:repeat(7,1fr);gap:2px;}
+.cal-day{aspect-ratio:1;border-radius:5px;display:flex;flex-direction:column;align-items:center;justify-content:flex-start;padding-top:2px;cursor:pointer;transition:all .15s;border:1px solid transparent;}
+.cal-day:hover{background:var(--surf2);border-color:var(--brd2);}
+.cal-day.empty{cursor:default;pointer-events:none;}
+.cal-day.today .dn{color:var(--acc);font-weight:700;}
+.cal-day.selected{background:var(--surf2);border-color:var(--acc)!important;}
+.cal-day.has-del{border-color:var(--brd2);}
+.dn{font-size:.68rem;color:var(--mut2);line-height:1;}
+.cal-day.selected .dn{color:var(--txt);}
+.ddots{display:flex;gap:1px;flex-wrap:wrap;justify-content:center;margin-top:1px;}
+.ddot{width:4px;height:4px;border-radius:50%;}
+.dcnt{font-size:.52rem;font-weight:700;color:var(--mut);margin-top:1px;line-height:1;}
+.cal-legend{padding:.4rem .7rem .5rem;border-top:1px solid var(--brd);display:flex;gap:6px;flex-wrap:wrap;}
+.cl-item{display:flex;align-items:center;gap:3px;font-size:.63rem;color:var(--mut);}
+.cl-dot{width:6px;height:6px;border-radius:50%;}
+.panel{flex:1;background:var(--surf);border-right:1px solid var(--brd);display:flex;flex-direction:column;overflow:hidden;min-width:0;}
+.panel-hd{padding:.75rem 1.1rem .5rem;border-bottom:1px solid var(--brd);display:flex;align-items:center;justify-content:space-between;flex-shrink:0;}
+.panel-title{font-family:'Syne',sans-serif;font-weight:700;font-size:.9rem;}
+.badge{background:var(--acc);color:#000;font-weight:700;font-size:.64rem;padding:2px 7px;border-radius:20px;}
+.scrollable{flex:1;overflow-y:auto;padding:.75rem 1.1rem;}
+.scrollable::-webkit-scrollbar{width:3px;}
+.scrollable::-webkit-scrollbar-thumb{background:var(--brd);border-radius:2px;}
+.page{display:none;flex-direction:column;height:100%;}
+.page.active{display:flex;}
+.filter-bar{padding:.4rem 1.1rem;border-bottom:1px solid var(--brd);display:flex;gap:4px;flex-wrap:wrap;flex-shrink:0;}
+.chip{background:var(--surf2);border:1px solid var(--brd);border-radius:20px;padding:3px 9px;font-size:.68rem;cursor:pointer;color:var(--mut);transition:all .15s;user-select:none;}
+.chip:hover{color:var(--txt);}
+.chip.active{border-color:var(--acc);color:var(--acc);}
+.chip.jorge.active{border-color:var(--jorge);color:var(--jorge);}
+.chip.diego.active{border-color:var(--diego);color:var(--diego);}
+.map-col{flex:1;position:relative;display:flex;flex-direction:column;min-width:200px;}
+#map{flex:1;}
+.map-legend{position:absolute;top:10px;right:10px;z-index:500;background:rgba(10,10,15,.93);border:1px solid var(--brd);border-radius:8px;padding:8px 11px;font-size:.68rem;backdrop-filter:blur(10px);}
+.ml-title{font-family:'Syne',sans-serif;font-weight:700;font-size:.66rem;color:var(--mut);text-transform:uppercase;letter-spacing:1px;margin-bottom:4px;}
+.ml-item{display:flex;align-items:center;gap:5px;margin-bottom:2px;}
+.ml-dot{width:7px;height:7px;border-radius:50%;flex-shrink:0;}
+.map-stats{position:absolute;bottom:24px;left:10px;z-index:500;display:flex;gap:5px;}
+.stat-pill{background:rgba(10,10,15,.93);border:1px solid var(--brd);border-radius:7px;padding:4px 10px;font-size:.66rem;backdrop-filter:blur(10px);text-align:center;}
+.stat-num{font-family:'Syne',sans-serif;font-weight:800;font-size:.88rem;color:var(--acc);}
+.form-grid{display:grid;gap:.6rem;}
+.form-row{display:grid;grid-template-columns:1fr 1fr;gap:.6rem;}
+.field{display:flex;flex-direction:column;gap:3px;}
+.field.full{grid-column:1/-1;}
+label{font-size:.63rem;font-weight:600;color:var(--mut);text-transform:uppercase;letter-spacing:.6px;}
+input,select,textarea{background:var(--surf2);border:1px solid var(--brd);border-radius:8px;color:var(--txt);font-family:'DM Sans',sans-serif;font-size:.84rem;padding:9px 11px;outline:none;transition:border-color .2s;width:100%;-webkit-appearance:none;appearance:none;}
+input:focus,select:focus,textarea:focus{border-color:var(--acc);}
+select{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%236868a0' d='M6 8L1 3h10z'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 10px center;padding-right:28px;}
+select option{background:var(--surf2);}
+textarea{resize:vertical;min-height:50px;}
+.btn-primary{background:var(--acc);color:#000;font-family:'Syne',sans-serif;font-weight:700;font-size:.86rem;border:none;border-radius:9px;padding:12px;cursor:pointer;width:100%;margin-top:.3rem;transition:all .2s;letter-spacing:.4px;touch-action:manipulation;}
+.btn-primary:hover{background:#ffe800;}
+.btn-primary:active{transform:scale(.98);}
+.btn-primary:disabled{opacity:.5;cursor:not-allowed;}
+.btn-secondary{background:var(--surf2);color:var(--txt);border:1px solid var(--brd);font-family:'DM Sans',sans-serif;font-size:.8rem;border-radius:8px;padding:7px 12px;cursor:pointer;transition:all .2s;touch-action:manipulation;}
+.btn-secondary:hover{border-color:var(--acc);color:var(--acc);}
+
+/* ── CLIENT LOOKUP ── */
+.phone-wrap{position:relative;}
+.phone-status{position:absolute;right:10px;top:50%;transform:translateY(-50%);font-size:.7rem;pointer-events:none;}
+.client-found{background:rgba(64,240,144,.08);border:1px solid rgba(64,240,144,.25);border-radius:8px;padding:.55rem .8rem;margin-top:.3rem;display:none;}
+.client-found.show{display:block;}
+.cf-title{font-size:.65rem;font-weight:600;color:var(--grn);text-transform:uppercase;letter-spacing:.5px;margin-bottom:3px;}
+.cf-name{font-family:'Syne',sans-serif;font-weight:700;font-size:.85rem;}
+.cf-addr{font-size:.72rem;color:var(--mut);margin-top:2px;}
+.cf-ref{font-size:.68rem;color:var(--acc2);margin-top:2px;}
+.cf-verified{font-size:.63rem;color:var(--grn);margin-top:2px;}
+.client-new{background:rgba(240,224,64,.06);border:1px solid rgba(240,224,64,.2);border-radius:8px;padding:.55rem .8rem;margin-top:.3rem;display:none;}
+.client-new.show{display:block;}
+.cn-title{font-size:.65rem;font-weight:600;color:var(--acc);text-transform:uppercase;letter-spacing:.5px;margin-bottom:.4rem;}
+
+/* ── GOOGLE AUTOCOMPLETE OVERRIDE ── */
+.pac-container{background:var(--surf2)!important;border:1px solid var(--brd)!important;border-radius:8px!important;margin-top:2px!important;font-family:'DM Sans',sans-serif!important;z-index:9999!important;}
+.pac-item{background:var(--surf2)!important;color:var(--txt)!important;font-size:.82rem!important;padding:8px 12px!important;border-top:1px solid var(--brd)!important;cursor:pointer!important;}
+.pac-item:hover{background:var(--surf3)!important;}
+.pac-item-query{color:var(--txt)!important;font-size:.82rem!important;}
+.pac-matched{color:var(--acc)!important;font-weight:600!important;}
+.pac-icon{display:none!important;}
+
+/* ── ADDRESS INPUT STATUS ── */
+.addr-wrap{position:relative;}
+.addr-status{position:absolute;right:10px;top:50%;transform:translateY(-50%);font-size:.75rem;pointer-events:none;}
+.addr-verified{border-color:var(--grn)!important;}
+.addr-hint{font-size:.63rem;color:var(--mut);margin-top:2px;}
+
+/* ── DELIVERY CARDS ── */
+.d-card{background:var(--surf2);border:1px solid var(--brd);border-radius:9px;padding:.7rem .85rem;margin-bottom:.45rem;cursor:pointer;transition:all .18s;position:relative;overflow:hidden;}
+.d-card::before{content:'';position:absolute;left:0;top:0;bottom:0;width:3px;border-radius:2px 0 0 2px;}
+.d-card.jorge::before{background:var(--jorge);}
+.d-card.diego::before{background:var(--diego);}
+.d-card.otro::before{background:var(--otro);}
+.d-card:hover{border-color:var(--brd2);}
+.d-card.completed{opacity:.35;}
+.card-top{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:2px;}
+.card-name{font-family:'Syne',sans-serif;font-weight:700;font-size:.86rem;}
+.card-btns{display:flex;gap:3px;}
+.ibtn{background:none;border:none;color:var(--mut);cursor:pointer;font-size:.78rem;padding:2px 6px;border-radius:4px;transition:color .15s;touch-action:manipulation;}
+.ibtn:hover{color:var(--txt);}
+.ibtn.del:hover{color:var(--acc3);}
+.ibtn.ok:hover{color:var(--grn);}
+.card-addr{font-size:.72rem;color:var(--mut);margin-bottom:4px;line-height:1.35;}
+.card-ref{font-size:.68rem;color:var(--acc2);margin-bottom:4px;}
+.card-phone{font-size:.7rem;color:var(--acc2);margin-bottom:4px;}
+.card-tags{display:flex;flex-wrap:wrap;gap:3px;}
+.tag{font-size:.6rem;font-weight:600;padding:2px 6px;border-radius:20px;background:var(--brd);color:var(--mut);text-transform:uppercase;letter-spacing:.4px;}
+.tag.product{color:var(--acc2);background:rgba(64,200,240,.12);}
+.tag.pay{color:var(--grn);background:rgba(64,240,144,.1);}
+.tag.time{color:var(--acc);background:rgba(240,224,64,.1);}
+.tag.driver.jorge{color:var(--jorge);background:rgba(240,224,64,.12);}
+.tag.driver.diego{color:var(--diego);background:rgba(64,200,240,.12);}
+.tag.driver.otro{color:var(--otro);background:rgba(240,64,144,.12);}
+.arrived-mark{font-size:.66rem;color:var(--grn);margin-top:3px;}
+/* ── EDIT PANEL ── */
+.card-edit{display:none;margin-top:.6rem;padding-top:.6rem;border-top:1px solid var(--brd2);}
+.card-edit.open{display:block;}
+.edit-grid{display:grid;gap:.4rem;}
+.edit-row{display:grid;grid-template-columns:1fr 1fr;gap:.4rem;}
+.edit-field{display:flex;flex-direction:column;gap:2px;}
+.edit-label{font-size:.58rem;font-weight:600;color:var(--mut);text-transform:uppercase;letter-spacing:.5px;}
+.edit-field input,.edit-field select{font-size:.78rem;padding:6px 9px;background:var(--surf3);border:1px solid var(--brd2);border-radius:6px;color:var(--txt);width:100%;outline:none;}
+.edit-field input:focus,.edit-field select:focus{border-color:var(--acc);}
+.edit-addr-wrap{position:relative;}
+.edit-addr-status{position:absolute;right:8px;top:50%;transform:translateY(-50%);font-size:.7rem;pointer-events:none;}
+.edit-addr-hint{font-size:.58rem;color:var(--mut);margin-top:2px;}
+.edit-btns{display:flex;gap:.35rem;margin-top:.4rem;}
+.btn-save-edit{flex:1;background:var(--acc);color:#000;font-family:'Syne',sans-serif;font-weight:700;font-size:.75rem;border:none;border-radius:7px;padding:8px;cursor:pointer;transition:all .2s;}
+.btn-save-edit:hover{background:#ffe800;}
+.btn-cancel-edit{background:var(--surf2);color:var(--mut);border:1px solid var(--brd);font-family:'DM Sans',sans-serif;font-size:.75rem;border-radius:7px;padding:8px 12px;cursor:pointer;}
+.btn-cancel-edit:hover{color:var(--txt);}
+.ibtn.edit:hover{color:var(--acc2);}
+
+
+/* ── ROUTES ── */
+.route-block{background:var(--surf2);border:1px solid var(--brd);border-radius:9px;padding:.8rem;margin-bottom:.6rem;}
+.route-hd{display:flex;justify-content:space-between;align-items:center;margin-bottom:.4rem;}
+.rdriver{font-family:'Syne',sans-serif;font-weight:700;font-size:.84rem;}
+.rdriver.jorge{color:var(--jorge);}.rdriver.diego{color:var(--diego);}.rdriver.otro{color:var(--otro);}
+.rsub{font-size:.68rem;color:var(--mut);}
+.stop{display:flex;gap:8px;align-items:flex-start;padding:5px 0;border-top:1px solid var(--brd);}
+.snum{width:20px;height:20px;border-radius:50%;font-size:.58rem;font-weight:800;display:flex;align-items:center;justify-content:center;flex-shrink:0;}
+.sbody{flex:1;min-width:0;}
+.sname{font-size:.76rem;font-weight:600;}
+.saddr{font-size:.66rem;color:var(--mut);word-break:break-word;}
+.sref{font-size:.64rem;color:var(--acc2);}
+.stime{font-size:.64rem;color:var(--acc);margin-top:2px;font-weight:600;}
+.stimes{display:flex;gap:4px;margin-top:3px;}
+.stimes input{flex:1;font-size:.66rem;padding:4px 6px;}
+.slabels{display:flex;gap:4px;margin-top:1px;}
+.slabels span{flex:1;font-size:.56rem;color:var(--mut);}
+
+/* ── OPTIMIZER ── */
+.opt-section{margin-bottom:.9rem;}
+.opt-stitle{font-family:'Syne',sans-serif;font-weight:700;font-size:.74rem;color:var(--mut);text-transform:uppercase;letter-spacing:.7px;margin-bottom:.45rem;}
+.dp-grid{display:grid;grid-template-columns:1fr 1fr;gap:.35rem;margin-bottom:.35rem;}
+.dp-btn{background:var(--surf2);border:2px solid var(--brd);border-radius:8px;padding:.5rem .65rem;cursor:pointer;transition:all .18s;text-align:left;touch-action:manipulation;}
+.dp-btn:hover{border-color:var(--acc2);}
+.dp-btn.selected{border-color:var(--acc);background:rgba(240,224,64,.07);}
+.dp-btn-name{font-family:'Syne',sans-serif;font-weight:700;font-size:.75rem;color:var(--txt);}
+.dp-btn-addr{font-size:.62rem;color:var(--mut);margin-top:1px;line-height:1.3;}
+.custom-dp{background:var(--surf2);border:2px dashed var(--brd);border-radius:8px;padding:.6rem .75rem;cursor:pointer;transition:all .18s;margin-bottom:.45rem;}
+.custom-dp:hover{border-color:var(--acc2);}
+.custom-dp.selected{border-color:var(--acc);border-style:solid;background:rgba(240,224,64,.07);}
+.custom-dp-label{font-size:.7rem;color:var(--mut);margin-bottom:.35rem;display:flex;align-items:center;gap:4px;}
+.custom-dp-fields{display:grid;gap:.35rem;}
+.driver-row{display:flex;gap:.35rem;flex-wrap:wrap;}
+.dchip{background:var(--surf2);border:1px solid var(--brd);border-radius:20px;padding:3px 11px;font-size:.7rem;cursor:pointer;color:var(--mut);transition:all .15s;touch-action:manipulation;}
+.dchip:hover{color:var(--txt);}
+.dchip.active{border-color:var(--acc);color:var(--acc);}
+.dchip.jorge.active{border-color:var(--jorge);color:var(--jorge);}
+.dchip.diego.active{border-color:var(--diego);color:var(--diego);}
+.opt-result{background:var(--surf2);border:1px solid var(--brd);border-radius:9px;padding:.85rem;margin-top:.75rem;}
+.opt-rh{display:flex;justify-content:space-between;align-items:center;margin-bottom:.65rem;}
+.opt-rtitle{font-family:'Syne',sans-serif;font-weight:700;font-size:.88rem;color:var(--grn);}
+.opt-stats{display:flex;gap:.4rem;}
+.opt-stat{background:var(--bg);border:1px solid var(--brd);border-radius:6px;padding:3px 9px;text-align:center;}
+.opt-stat-n{font-family:'Syne',sans-serif;font-weight:800;font-size:.9rem;color:var(--acc);}
+.opt-stat-l{font-size:.58rem;color:var(--mut);}
+.opt-stop{display:flex;gap:7px;align-items:flex-start;padding:5px 0;border-top:1px solid var(--brd);}
+.opt-snum{width:21px;height:21px;border-radius:50%;background:var(--acc);color:#000;font-size:.62rem;font-weight:800;display:flex;align-items:center;justify-content:center;flex-shrink:0;margin-top:1px;}
+.opt-snum.origin{background:var(--acc2);}
+.opt-sbody{flex:1;min-width:0;}
+.opt-sname{font-size:.78rem;font-weight:600;}
+.opt-saddr{font-size:.66rem;color:var(--mut);}
+.opt-sdist{font-size:.61rem;color:var(--mut);margin-top:1px;}
+.btn-gmaps{background:linear-gradient(135deg,#4285f4,#34a853);color:#fff;font-family:'Syne',sans-serif;font-weight:700;font-size:.8rem;border:none;border-radius:9px;padding:11px;cursor:pointer;width:100%;margin-top:.65rem;transition:all .2s;display:flex;align-items:center;justify-content:center;gap:7px;touch-action:manipulation;}
+.btn-gmaps:hover{opacity:.9;}
+
+/* ── CLIENTS PAGE ── */
+.client-card{background:var(--surf2);border:1px solid var(--brd);border-radius:9px;padding:.7rem .85rem;margin-bottom:.4rem;}
+.cc-top{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:2px;}
+.cc-name{font-family:'Syne',sans-serif;font-weight:700;font-size:.85rem;}
+.cc-phone{font-size:.7rem;color:var(--acc2);margin-bottom:3px;}
+.cc-addr{font-size:.7rem;color:var(--mut);line-height:1.35;}
+.cc-ref{font-size:.66rem;color:var(--acc2);margin-top:2px;}
+.cc-badge{font-size:.58rem;font-weight:600;padding:1px 6px;border-radius:10px;margin-left:4px;}
+.cc-badge.google{background:rgba(64,240,144,.12);color:var(--grn);}
+
+/* ── SETTINGS ── */
+.cfg-block{background:var(--surf2);border:1px solid var(--brd);border-radius:9px;padding:.8rem;margin-bottom:.65rem;}
+.cfg-title{font-family:'Syne',sans-serif;font-weight:700;font-size:.74rem;color:var(--mut);text-transform:uppercase;letter-spacing:.7px;margin-bottom:.55rem;}
+.dp-edit-row{display:grid;grid-template-columns:1fr auto;gap:.35rem;align-items:end;margin-bottom:.4rem;padding-bottom:.4rem;border-bottom:1px solid var(--brd);}
+.dp-edit-row:last-child{border-bottom:none;margin-bottom:0;padding-bottom:0;}
+.divider{height:1px;background:var(--brd);margin:.65rem 0;}
+#toast{position:fixed;bottom:max(80px,env(safe-area-inset-bottom,16px) + 16px);left:50%;transform:translateX(-50%) translateY(80px);background:var(--acc);color:#000;font-family:'Syne',sans-serif;font-weight:700;font-size:.8rem;padding:9px 18px;border-radius:8px;z-index:9999;opacity:0;transition:all .3s;white-space:nowrap;}
+#toast.show{transform:translateX(-50%) translateY(0);opacity:1;}
+.leaflet-popup-content-wrapper{background:var(--surf)!important;border:1px solid var(--brd)!important;border-radius:9px!important;color:var(--txt)!important;box-shadow:0 8px 32px rgba(0,0,0,.5)!important;}
+.leaflet-popup-tip{background:var(--surf)!important;}
+.pu-name{font-family:'Syne',sans-serif;font-weight:700;font-size:.88rem;margin-bottom:2px;}
+.pu-addr{font-size:.72rem;color:var(--mut);margin-bottom:4px;}
+.pu-row{font-size:.72rem;display:flex;gap:4px;margin-bottom:2px;}
+.pu-lbl{color:var(--mut);}.pu-val{color:var(--txt);font-weight:500;}
+.empty{text-align:center;padding:2rem 1rem;color:var(--mut);}
+.empty-icon{font-size:1.8rem;margin-bottom:.35rem;}
+.empty-txt{font-size:.78rem;line-height:1.5;}
+.mob-nav{display:none;position:fixed;bottom:0;left:0;right:0;background:var(--surf);border-top:1px solid var(--brd);height:var(--tab-h);z-index:200;padding-bottom:env(safe-area-inset-bottom,0);}
+.mob-nav-inner{display:flex;height:100%;}
+.mnb{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;background:none;border:none;color:var(--mut);cursor:pointer;font-size:.58rem;font-family:'DM Sans',sans-serif;transition:color .18s;touch-action:manipulation;padding:0;}
+.mnb .ico{font-size:1.25rem;line-height:1;}
+.mnb.active{color:var(--acc);}
+@media(max-width:900px){.cal-col{display:none;}.map-col{display:none;}.map-col.mob-show{display:flex;}.desk-nav{display:none;}.mob-nav{display:flex;}.main{padding-bottom:var(--tab-h);}.panel{flex:1;max-width:100%;}#toast{bottom:calc(var(--tab-h) + max(8px,env(safe-area-inset-bottom,0px)));}}
+@media(max-width:600px){header{padding:0 .75rem;}.hdr-date{font-size:.7rem;padding:3px 8px;}.panel-hd{padding:.65rem .9rem .4rem;}.scrollable{padding:.65rem .9rem;}.filter-bar{padding:.35rem .9rem;}.form-row{grid-template-columns:1fr;}.dp-grid{grid-template-columns:1fr;}}
+</style>
+</head>
+<body>
+<div class="shell">
+
+<header>
+  <div class="logo">Reparto<span>Track</span></div>
+  <div class="desk-nav">
+    <button class="nb active" onclick="switchPanel('list',this)">📋 Pedidos</button>
+    <button class="nb" onclick="switchPanel('form',this)">➕ Nuevo</button>
+    <button class="nb" onclick="switchPanel('routes',this)">🗺️ Rutas</button>
+    <button class="nb" onclick="switchPanel('optimizer',this)">⚡ Optimizar</button>
+    <button class="nb" onclick="switchPanel('clients',this)">👥 Clientes</button>
+    <button class="nb" onclick="switchPanel('settings',this)">⚙️</button>
+  </div>
+  <div class="hdr-date" id="hdr-date">Hoy</div>
+</header>
+
+<div class="main">
+  <div class="cal-col">
+    <div class="cal-hdr">
+      <div class="cal-month" id="cal-title"></div>
+      <div class="cal-nav"><button onclick="calMove(-1)">‹</button><button onclick="calMove(1)">›</button></div>
+    </div>
+    <div class="cal-body">
+      <div class="cal-wds">
+        <div class="cal-wd">Lu</div><div class="cal-wd">Ma</div><div class="cal-wd">Mi</div>
+        <div class="cal-wd">Ju</div><div class="cal-wd">Vi</div><div class="cal-wd">Sa</div><div class="cal-wd">Do</div>
+      </div>
+      <div class="cal-days" id="cal-days"></div>
+    </div>
+    <div class="cal-legend">
+      <div class="cl-item"><div class="cl-dot" style="background:var(--jorge)"></div>Jorge</div>
+      <div class="cl-item"><div class="cl-dot" style="background:var(--diego)"></div>Diego</div>
+      <div class="cl-item"><div class="cl-dot" style="background:var(--otro)"></div>Otro</div>
+    </div>
+  </div>
+
+  <div class="panel">
+
+    <!-- PEDIDOS -->
+    <div id="page-list" class="page active">
+      <div class="panel-hd">
+        <div class="panel-title">Pedidos del día</div>
+        <span class="badge" id="list-count">0</span>
+      </div>
+      <div class="filter-bar">
+        <div class="chip active" onclick="setFilter('all',this)">Todos</div>
+        <div class="chip jorge"  onclick="setFilter('jorge',this)">Jorge</div>
+        <div class="chip diego"  onclick="setFilter('diego',this)">Diego</div>
+        <div class="chip"        onclick="setFilter('pending',this)">Pendientes</div>
+      </div>
+      <div class="scrollable" id="delivery-list"></div>
+    </div>
+
+    <!-- NUEVA ENTREGA -->
+    <div id="page-form" class="page">
+      <div class="panel-hd"><div class="panel-title">Nueva Entrega</div></div>
+      <div class="scrollable">
+        <div class="form-grid">
+
+          <div class="field full">
+            <label>Fecha</label>
+            <input type="date" id="f-date">
+          </div>
+
+          <!-- Teléfono → lookup -->
+          <div class="field full">
+            <label>Teléfono cliente</label>
+            <div class="phone-wrap">
+              <input id="f-phone" type="tel" placeholder="+56 9 XXXX XXXX"
+                oninput="onPhoneInput(this.value)" autocomplete="tel">
+              <span class="phone-status" id="phone-status"></span>
+            </div>
+            <!-- Cliente encontrado -->
+            <div class="client-found" id="client-found">
+              <div class="cf-title">✅ Cliente registrado</div>
+              <div class="cf-name" id="cf-name"></div>
+              <div class="cf-addr" id="cf-addr"></div>
+              <div class="cf-ref"  id="cf-ref"></div>
+              <div class="cf-verified" id="cf-verified"></div>
+            </div>
+            <!-- Cliente nuevo -->
+            <div class="client-new" id="client-new">
+              <div class="cn-title">➕ Nuevo cliente — se guardará automáticamente</div>
+              <div class="form-grid">
+                <div class="field full">
+                  <label>Nombre</label>
+                  <input id="f-name" type="text" placeholder="Nombre del cliente">
+                </div>
+                <div class="field full">
+                  <label>Dirección</label>
+                  <div class="addr-wrap">
+                    <input id="f-address" type="text" placeholder="Escribe para buscar dirección..."
+                      autocomplete="off">
+                    <span class="addr-status" id="addr-status"></span>
+                  </div>
+                  <div class="addr-hint" id="addr-hint">Selecciona una sugerencia de Google Maps</div>
+                </div>
+                <div class="field full">
+                  <label>Referencia</label>
+                  <input id="f-reference" type="text" placeholder="Portón verde, 2do piso, casa 36...">
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="form-row">
+            <div class="field">
+              <label>Producto</label>
+              <select id="f-product">
+                <option value="">Seleccionar...</option>
+                <option>Ca Lav</option><option>XXX</option><option>Otro</option>
+              </select>
+            </div>
+            <div class="field">
+              <label>Monto</label>
+              <input id="f-amount" type="text" placeholder="Ej: 20k">
+            </div>
+          </div>
+
+          <div class="form-row">
+            <div class="field">
+              <label>Tipo de pago</label>
+              <select id="f-payment">
+                <option value="">Seleccionar...</option>
+                <option>Transferencia</option><option>Efectivo</option>
+                <option>Débito</option><option>Crédito</option>
+              </select>
+            </div>
+            <div class="field">
+              <label>Repartidor</label>
+              <select id="f-driver">
+                <option value="">Seleccionar...</option>
+                <option value="jorge">Jorge</option>
+                <option value="diego">Diego</option>
+                <option value="otro">Otro</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="form-row">
+            <div class="field"><label>Hora inicio</label><input id="f-ts" type="time" value="12:00"></div>
+            <div class="field"><label>Hora fin</label>   <input id="f-te" type="time" value="15:00"></div>
+          </div>
+
+          <div class="field full">
+            <label>Notas internas</label>
+            <textarea id="f-notes" placeholder="Solo visible en la app..."></textarea>
+          </div>
+
+          <button class="btn-primary" id="btn-add" onclick="addDelivery()">+ AGREGAR ENTREGA</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- RUTAS -->
+    <div id="page-routes" class="page">
+      <div class="panel-hd"><div class="panel-title">Rutas del día</div></div>
+      <div class="scrollable" id="routes-body"></div>
+    </div>
+
+    <!-- OPTIMIZADOR -->
+    <div id="page-optimizer" class="page">
+      <div class="panel-hd"><div class="panel-title">⚡ Optimizar Ruta</div></div>
+      <div class="scrollable">
+        <div class="opt-section">
+          <div class="opt-stitle">1 · Punto de partida</div>
+          <div class="dp-grid" id="dp-buttons"></div>
+          <div class="custom-dp" id="custom-dp-card" onclick="selectCustomDP()">
+            <div class="custom-dp-label">📍 Dirección personalizada</div>
+            <div class="custom-dp-fields" id="custom-dp-fields" style="display:none">
+              <div class="field">
+                <label>Nombre</label>
+                <input id="cdp-name" type="text" placeholder="Mi casa" onclick="event.stopPropagation()">
+              </div>
+              <div class="field">
+                <label>Dirección</label>
+                <input id="cdp-addr" type="text" placeholder="Escribe para buscar..." onclick="event.stopPropagation()" autocomplete="off">
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="divider"></div>
+        <div class="opt-section">
+          <div class="opt-stitle">2 · Repartidor (opcional)</div>
+          <div class="driver-row">
+            <div class="dchip active" onclick="setOptDriver('',this)">Todos</div>
+            <div class="dchip jorge"  onclick="setOptDriver('jorge',this)">Jorge</div>
+            <div class="dchip diego"  onclick="setOptDriver('diego',this)">Diego</div>
+            <div class="dchip"        onclick="setOptDriver('otro',this)">Otro</div>
+          </div>
+        </div>
+        <div class="divider"></div>
+        <button class="btn-primary" id="btn-optimize" onclick="runOptimizer()">⚡ CALCULAR RUTA ÓPTIMA</button>
+        <div id="opt-result"></div>
+      </div>
+    </div>
+
+    <!-- CLIENTES -->
+    <div id="page-clients" class="page">
+      <div class="panel-hd">
+        <div class="panel-title">👥 Clientes</div>
+        <span class="badge" id="clients-count">0</span>
+      </div>
+      <div class="scrollable" id="clients-list"></div>
+    </div>
+
+    <!-- AJUSTES -->
+    <div id="page-settings" class="page">
+      <div class="panel-hd"><div class="panel-title">⚙️ Configuración</div></div>
+      <div class="scrollable">
+        <div class="cfg-block">
+          <div class="cfg-title">Google Maps API Key</div>
+          <div class="field">
+            <label>API Key</label>
+            <input id="s-gmaps-key" type="text" placeholder="AIza...">
+          </div>
+          <div style="font-size:.65rem;color:var(--mut);margin-top:.3rem;">
+            Requiere: Maps JavaScript API, Places API, Geocoding API habilitadas en Google Cloud Console.
+          </div>
+        </div>
+        <div class="cfg-block">
+          <div class="cfg-title">Puntos de partida habituales</div>
+          <div id="settings-dp-list"></div>
+          <button class="btn-secondary" style="width:100%;margin-top:.5rem" onclick="addNewDP()">+ Agregar punto</button>
+        </div>
+        <button class="btn-primary" onclick="saveSettings()">💾 GUARDAR</button>
+      </div>
+    </div>
+
+  </div><!-- .panel -->
+
+  <div class="map-col" id="map-col">
+    <div id="map" style="flex:1;"></div>
+    <div class="map-legend">
+      <div class="ml-title">Repartidores</div>
+      <div class="ml-item"><div class="ml-dot" style="background:var(--jorge)"></div>Jorge</div>
+      <div class="ml-item"><div class="ml-dot" style="background:var(--diego)"></div>Diego</div>
+      <div class="ml-item"><div class="ml-dot" style="background:var(--otro)"></div>Otro</div>
+    </div>
+    <div class="map-stats">
+      <div class="stat-pill"><div class="stat-num" id="s-total">0</div><div>Total</div></div>
+      <div class="stat-pill"><div class="stat-num" id="s-pend">0</div><div>Pendientes</div></div>
+      <div class="stat-pill"><div class="stat-num" id="s-done">0</div><div>Completadas</div></div>
+    </div>
+  </div>
+
+</div>
+</div>
+
+<nav class="mob-nav">
+  <div class="mob-nav-inner">
+    <button class="mnb active" onclick="mobSwitch('list',this)"><span class="ico">📋</span>Pedidos</button>
+    <button class="mnb"        onclick="mobSwitch('form',this)"><span class="ico">➕</span>Nuevo</button>
+    <button class="mnb"        onclick="mobSwitch('map',this)"><span class="ico">🗺️</span>Mapa</button>
+    <button class="mnb"        onclick="mobSwitch('optimizer',this)"><span class="ico">⚡</span>Ruta</button>
+    <button class="mnb"        onclick="mobSwitch('clients',this)"><span class="ico">👥</span>Clientes</button>
+    <button class="mnb"        onclick="mobSwitch('settings',this)"><span class="ico">⚙️</span>Config</button>
+  </div>
+</nav>
+
+<div id="toast"></div>
+
+<script>
+// ════════════════════════════════════════════════════════
+//  ESTADO
+// ════════════════════════════════════════════════════════
+const COLORS={jorge:'#f0e040',diego:'#40c8f0',otro:'#f04090'};
+let deliveries=[],calSummary={},currentFilter='all';
+let map,markers={},routeLines=[];
+let calYear=new Date().getFullYear(),calMonth=new Date().getMonth();
+let selectedDate=todayStr();
+let appConfig={google_maps_key:'',departure_points:[]};
+let selectedDP=null,customDPSelected=false,selectedOptDriver='';
+let lookupTimer=null,currentClient=null;
+
+// Google Places state
+let addressAutocomplete=null;   // para formulario nuevo cliente
+let customDPAutocomplete=null;  // para punto partida personalizado
+let pendingAddressData=null;    // datos de la dirección seleccionada en Google
+let googleMapsLoaded=false;
+
+// ════════════════════════════════════════════════════════
+//  INIT
+// ════════════════════════════════════════════════════════
+async function init(){
+  initMap();
+  await loadConfig();
+  renderCalendar();
+  loadCalSummary();
+  selectDate(selectedDate);
+  syncFormDate();
+}
+init();
+
+// ════════════════════════════════════════════════════════
+//  GOOGLE MAPS LOADER — robusto, sin race conditions
+// ════════════════════════════════════════════════════════
+let gmapsReadyPromise=null;
+
+function loadGoogleMaps(apiKey){
+  if(!apiKey)return;
+  if(googleMapsLoaded)return;
+  googleMapsLoaded=true;
+
+  gmapsReadyPromise=new Promise(resolve=>{
+    window.__gmapsReady=resolve;
+    const s=document.createElement('script');
+    // callback global → resuelve la promise
+    s.src=`https://maps.googleapis.com/maps/api/js?key=${apiKey}&libraries=places&callback=__gmapsReady`;
+    s.async=true;
+    document.head.appendChild(s);
+  });
+
+  // Una vez cargado, enganchar autocomplete al formulario nuevo cliente
+  gmapsReadyPromise.then(()=>{
+    attachNewClientAutocomplete();
+    attachCustomDPAutocomplete();
+  });
+}
+
+// Espera a que Google Maps esté listo (para llamar desde cualquier lugar)
+function whenGoogleReady(fn){
+  if(typeof google!=='undefined'&&google.maps&&google.maps.places){fn();return;}
+  if(gmapsReadyPromise){gmapsReadyPromise.then(fn);return;}
+  // Si aún no se llamó loadGoogleMaps, encolar para cuando se llame
+  const orig=loadGoogleMaps;
+  window.__gmapsQueue=(window.__gmapsQueue||[]);
+  window.__gmapsQueue.push(fn);
+}
+
+// ── Autocomplete formulario NUEVO CLIENTE ────────────────
+function attachNewClientAutocomplete(){
+  const input=document.getElementById('f-address');
+  if(!input||input._acDone)return;
+  input._acDone=true;
+  const ac=new google.maps.places.Autocomplete(input,{
+    componentRestrictions:{country:'cl'},
+    fields:['place_id','formatted_address','geometry'],
+  });
+  // Evitar que Enter envíe el form
+  input.addEventListener('keydown',e=>{if(e.key==='Enter')e.preventDefault();});
+  ac.addListener('place_changed',()=>{
+    const place=ac.getPlace();
+    const status=document.getElementById('addr-status');
+    const hint  =document.getElementById('addr-hint');
+    if(!place||!place.geometry){
+      pendingAddressData=null;
+      if(status)status.textContent='⚠️';
+      if(hint){hint.textContent='Selecciona una dirección de la lista';hint.style.color='var(--acc3)';}
+      return;
+    }
+    pendingAddressData={
+      place_id:          place.place_id,
+      formatted_address: place.formatted_address,
+      lat:               place.geometry.location.lat(),
+      lng:               place.geometry.location.lng(),
+      verified:          true,
+      geocode_source:    'google',
+    };
+    input.value=place.formatted_address;
+    if(status)status.textContent='✅';
+    if(hint){hint.textContent='✅ Dirección verificada por Google';hint.style.color='var(--grn)';}
+  });
+  input.addEventListener('input',()=>{
+    pendingAddressData=null;
+    const status=document.getElementById('addr-status');
+    const hint  =document.getElementById('addr-hint');
+    if(status)status.textContent='';
+    if(hint){hint.textContent='Selecciona una sugerencia de Google Maps';hint.style.color='';}
+  });
+}
+
+// ── Autocomplete punto de partida personalizado ──────────
+function attachCustomDPAutocomplete(){
+  const input = document.getElementById('cdp-addr');
+  if(!input || input._acDone) return;
+
+  input._acDone = true;
+
+  const ac = new google.maps.places.Autocomplete(input, {
+    componentRestrictions: { country: 'cl' },
+    fields: ['place_id', 'formatted_address', 'geometry'],
+  });
+
+  input.addEventListener('keydown', e => {
+    if(e.key === 'Enter') e.preventDefault();
+  });
+
+  ac.addListener('place_changed', () => {
+    const place = ac.getPlace();
+    if(!place) return;
+
+    input._placeData = {
+      place_id: place.place_id || '',
+      formatted_address: place.formatted_address || input.value.trim()
+    };
+
+    input.value = place.formatted_address || input.value;
+  });
+}
+
+// ── Autocomplete para edición inline de tarjeta ──────────
+function attachEditAutocomplete(id){
+  // Llamar cuando Google esté disponible
+  whenGoogleReady(()=>_doAttachEditAC(id));
+}
+function _doAttachEditAC(id){
+  const eid=`edit-${id}`;
+  const input=document.getElementById(`${eid}-addr`);
+  if(!input||input._acDone)return;
+  input._acDone=true;
+  const ac=new google.maps.places.Autocomplete(input,{
+    componentRestrictions:{country:'cl'},
+    fields:['place_id','formatted_address','geometry'],
+  });
+  input.addEventListener('keydown',e=>{if(e.key==='Enter')e.preventDefault();});
+  ac.addListener('place_changed',()=>{
+    const place=ac.getPlace();
+    const status=document.getElementById(`${eid}-addr-status`);
+    const hint  =document.getElementById(`${eid}-addr-hint`);
+    if(!place||!place.geometry){
+      delete editAddrData[id];
+      if(status)status.textContent='⚠️';
+      if(hint){hint.textContent='Selecciona una dirección de la lista';hint.style.color='var(--acc3)';}
+      return;
+    }
+    editAddrData[id]={
+      lat:               place.geometry.location.lat(),
+      lng:               place.geometry.location.lng(),
+      formatted_address: place.formatted_address,
+      place_id:          place.place_id,
+      verified:          true,
+      geocode_source:    'google',
+    };
+    input.value=place.formatted_address;
+    if(status)status.textContent='✅';
+    if(hint){hint.textContent='✅ Dirección verificada por Google';hint.style.color='var(--grn)';}
+  });
+  input.addEventListener('input',()=>{
+    delete editAddrData[id];
+    const status=document.getElementById(`${eid}-addr-status`);
+    const hint  =document.getElementById(`${eid}-addr-hint`);
+    if(status)status.textContent='';
+    if(hint){hint.textContent='Escribe para buscar con Google Maps';hint.style.color='';}
+  });
+}
+
+// ════════════════════════════════════════════════════════
+//  MAPA (Leaflet)
+// ════════════════════════════════════════════════════════
+function initMap(){
+  map=L.map('map',{center:[-36.82,-73.05],zoom:12});
+  L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png',{
+    attribution:'©OpenStreetMap ©CartoDB',maxZoom:19
+  }).addTo(map);
+}
+function makeIcon(driver,num,size=30){
+  const c=COLORS[driver]||'#fff';
+  return L.divIcon({
+    html:`<div style="background:${c};color:#000;width:${size}px;height:${size}px;border-radius:50% 50% 50% 0;transform:rotate(-45deg);display:flex;align-items:center;justify-content:center;font-family:'Syne',sans-serif;font-weight:800;font-size:${Math.round(size*.4)}px;box-shadow:0 3px 10px rgba(0,0,0,.5);border:2px solid rgba(255,255,255,.2)"><span style="transform:rotate(45deg)">${num}</span></div>`,
+    className:'',iconSize:[size,size],iconAnchor:[size/2,size],popupAnchor:[0,-size]
+  });
+}
+function makeOriginIcon(){
+  return L.divIcon({
+    html:`<div style="background:#40c8f0;color:#000;width:34px;height:34px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:16px;box-shadow:0 3px 12px rgba(64,200,240,.5);border:3px solid rgba(255,255,255,.4)">🚀</div>`,
+    className:'',iconSize:[34,34],iconAnchor:[17,17],popupAnchor:[0,-20]
+  });
+}
+function addMarker(d){
+  if(!d.lat||!d.lng)return;
+  const list=deliveries.filter(x=>x.driver===d.driver);
+  const num=list.findIndex(x=>x.id===d.id)+1;
+  const ref=d.reference||d._client?.reference||'';
+  const m=L.marker([d.lat,d.lng],{icon:makeIcon(d.driver,num)});
+  m.bindPopup(`
+    <div class="pu-name">${d.name}</div>
+    <div class="pu-addr">📍 ${d.address}</div>
+    ${ref?`<div class="pu-row"><span class="pu-lbl">🔖</span><span class="pu-val">${ref}</span></div>`:''}
+    ${d.client_phone?`<div class="pu-row"><span class="pu-lbl">📞</span><span class="pu-val">${d.client_phone}</span></div>`:''}
+    ${d.product?`<div class="pu-row"><span class="pu-lbl">📦</span><span class="pu-val">${d.product} ${d.amount}</span></div>`:''}
+    ${d.payment?`<div class="pu-row"><span class="pu-lbl">💳</span><span class="pu-val">${d.payment}</span></div>`:''}
+    <div class="pu-row"><span class="pu-lbl">⏰</span><span class="pu-val">${d.time_start}–${d.time_end}</span></div>
+    <div class="pu-row"><span class="pu-lbl">🚴</span><span class="pu-val" style="color:${COLORS[d.driver]}">${cap(d.driver)}</span></div>
+    ${d.arrived_at?`<div class="pu-row"><span class="pu-lbl">✅</span><span class="pu-val">Llegó: ${d.arrived_at}</span></div>`:''}
+  `);
+  m.addTo(map);markers[d.id]=m;
+}
+function refreshMarkers(){
+  Object.values(markers).forEach(m=>map.removeLayer(m));
+  markers={};clearRouteLines();
+  deliveries.forEach(d=>addMarker(d));
+  const pts=deliveries.filter(d=>d.lat).map(d=>[d.lat,d.lng]);
+  if(pts.length)map.fitBounds(pts,{padding:[40,40]});
+}
+function clearRouteLines(){routeLines.forEach(l=>map.removeLayer(l));routeLines=[];}
+
+// ════════════════════════════════════════════════════════
+//  CALENDARIO
+// ════════════════════════════════════════════════════════
+async function loadCalSummary(){
+  const r=await fetch(`/api/calendar?year=${calYear}&month=${calMonth+1}`);
+  calSummary=await r.json();renderCalendar();
+}
+function calMove(dir){
+  calMonth+=dir;
+  if(calMonth>11){calMonth=0;calYear++;}
+  if(calMonth<0){calMonth=11;calYear--;}
+  loadCalSummary();
+}
+function renderCalendar(){
+  const MN=['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
+  document.getElementById('cal-title').textContent=`${MN[calMonth]} ${calYear}`;
+  const c=document.getElementById('cal-days');c.innerHTML='';
+  const first=new Date(calYear,calMonth,1).getDay();
+  const off=(first===0)?6:first-1;
+  const dim=new Date(calYear,calMonth+1,0).getDate();
+  const today=todayStr();
+  for(let i=0;i<off;i++){const e=document.createElement('div');e.className='cal-day empty';c.appendChild(e);}
+  for(let d=1;d<=dim;d++){
+    const ds=`${calYear}-${String(calMonth+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+    const info=calSummary[ds];
+    const el=document.createElement('div');
+    let cls='cal-day';
+    if(ds===today)cls+=' today';
+    if(ds===selectedDate)cls+=' selected';
+    if(info&&info.total>0)cls+=' has-del';
+    el.className=cls;el.onclick=()=>selectDate(ds);
+    let inner=`<div class="dn">${d}</div>`;
+    if(info&&info.total>0){
+      const dots=(info.drivers||[]).map(drv=>`<div class="ddot" style="background:${COLORS[drv]||'#fff'}"></div>`).join('');
+      inner+=`<div class="ddots">${dots}</div><div class="dcnt">${info.total}</div>`;
+    }
+    el.innerHTML=inner;c.appendChild(el);
+  }
+}
+async function selectDate(ds){
+  selectedDate=ds;syncFormDate();
+  document.getElementById('hdr-date').textContent=(ds===todayStr()?'Hoy · ':'')+fmtDate(ds);
+  renderCalendar();
+  const r=await fetch(`/api/deliveries?date=${ds}`);
+  deliveries=await r.json();
+  renderAll();refreshMarkers();
+}
+
+// ════════════════════════════════════════════════════════
+//  CLIENTE LOOKUP
+// ════════════════════════════════════════════════════════
+function onPhoneInput(raw){
+  clearTimeout(lookupTimer);
+  currentClient=null;
+  hideClientBoxes();
+  const digits=raw.replace(/\D/g,'');
+  if(digits.length<8){document.getElementById('phone-status').textContent='';return;}
+  document.getElementById('phone-status').textContent='🔍';
+  lookupTimer=setTimeout(()=>lookupClient(raw),500);
+}
+
+async function lookupClient(raw){
+  try{
+    const r=await fetch(`/api/clients?phone=${encodeURIComponent(raw)}`);
+    if(r.ok){
+      const client=await r.json();
+      if(client){currentClient=client;showClientFound(client);return;}
+    }
+  }catch(e){}
+  showClientNew();
+}
+
+function showClientFound(c){
+  document.getElementById('phone-status').textContent='✅';
+  document.getElementById('cf-name').textContent=c.name||'Sin nombre';
+  document.getElementById('cf-addr').textContent=c.formatted_address||c.address||'Sin dirección';
+  document.getElementById('cf-ref').textContent=c.reference?`🔖 ${c.reference}`:'';
+  document.getElementById('cf-verified').textContent=c.geocode_source==='google'?'📍 Coordenadas verificadas por Google':'';
+  document.getElementById('client-found').classList.add('show');
+  document.getElementById('client-new').classList.remove('show');
+}
+function showClientNew(){
+  document.getElementById('phone-status').textContent='🆕';
+  document.getElementById('client-new').classList.add('show');
+  document.getElementById('client-found').classList.remove('show');
+  // Reset address state
+  pendingAddressData=null;
+  const hint=document.getElementById('addr-hint');
+  if(hint){hint.textContent='Selecciona una sugerencia de Google Maps';hint.style.color='';}
+  document.getElementById('addr-status').textContent='';
+}
+function hideClientBoxes(){
+  document.getElementById('client-found').classList.remove('show');
+  document.getElementById('client-new').classList.remove('show');
+  document.getElementById('phone-status').textContent='';
+}
+
+// ════════════════════════════════════════════════════════
+//  AGREGAR ENTREGA
+// ════════════════════════════════════════════════════════
+async function addDelivery(){
+  const phone=v('f-phone');
+  const product=v('f-product'),amount=v('f-amount'),payment=v('f-payment');
+  const driver=v('f-driver'),ts=v('f-ts'),te=v('f-te'),notes=v('f-notes');
+  const date=v('f-date')||selectedDate;
+
+  if(!phone){toast('⚠️ Teléfono requerido');return;}
+  if(!driver){toast('⚠️ Repartidor requerido');return;}
+
+  const btn=document.getElementById('btn-add');
+  btn.textContent='⏳ Guardando...';btn.disabled=true;
+
+  let clientData={};
+
+  if(currentClient){
+    // Cliente existente — usar sus datos guardados
+    clientData={
+      phone:             currentClient.phone,
+      name:              currentClient.name,
+      address:           currentClient.formatted_address||currentClient.address,
+      formatted_address: currentClient.formatted_address||currentClient.address,
+      lat:               currentClient.lat,
+      lng:               currentClient.lng,
+      reference:         currentClient.reference||'',
+    };
+  } else {
+    // Cliente nuevo
+    const name=v('f-name');
+    const addressInput=v('f-address');
+    const reference=v('f-reference');
+
+    if(!name||!addressInput){
+      toast('⚠️ Nombre y dirección requeridos');
+      btn.textContent='+ AGREGAR ENTREGA';btn.disabled=false;return;
+    }
+
+    let lat=null,lng=null,formatted_address=addressInput,place_id='',verified=false,geocode_source='manual';
+
+    if(pendingAddressData){
+      // Dirección seleccionada desde Google Autocomplete
+      lat=pendingAddressData.lat;
+      lng=pendingAddressData.lng;
+      formatted_address=pendingAddressData.formatted_address;
+      place_id=pendingAddressData.place_id;
+      verified=true;
+      geocode_source='google';
+    } else {
+      toast('⚠️ Selecciona la dirección desde las sugerencias de Google Maps');
+      btn.textContent='+ AGREGAR ENTREGA';btn.disabled=false;return;
+    }
+
+    // Guardar cliente
+    await fetch('/api/clients',{
+      method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({phone,name,address_input:addressInput,address:formatted_address,formatted_address,place_id,reference,lat,lng,verified,geocode_source})
+    });
+
+    clientData={phone,name,address:formatted_address,formatted_address,lat,lng,reference};
+  }
+
+  const res=await fetch('/api/deliveries',{
+    method:'POST',headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({
+      delivery_date:date,
+      phone:clientData.phone||phone,
+      name:clientData.name,
+      address:clientData.formatted_address||clientData.address,
+      formatted_address:clientData.formatted_address||clientData.address,
+      reference:clientData.reference||'',
+      product,amount,payment,driver,
+      time_start:ts,time_end:te,notes,
+      lat:clientData.lat,lng:clientData.lng
+    })
+  });
+
+  if(res.ok){
+    const nd=await res.json();
+    if(date===selectedDate){deliveries.push(nd);refreshMarkers();}
+    const[y,m]=date.split('-').map(Number);
+    if(y===calYear&&m===calMonth+1)await loadCalSummary();
+    renderAll();
+    ['f-phone','f-name','f-address','f-reference','f-amount','f-notes'].forEach(id=>document.getElementById(id).value='');
+    ['f-product','f-payment','f-driver'].forEach(id=>document.getElementById(id).value='');
+    hideClientBoxes();currentClient=null;pendingAddressData=null;
+    const addrHint=document.getElementById('addr-hint');
+    if(addrHint){addrHint.textContent='Selecciona una sugerencia de Google Maps';addrHint.style.color='';}
+    document.getElementById('addr-status').textContent='';
+    toast('✅ Entrega agregada · '+fmtDate(date));
+  }else{
+    const e=await res.json();toast('❌ '+e.error);
+  }
+  btn.textContent='+ AGREGAR ENTREGA';btn.disabled=false;
+}
+
+// ════════════════════════════════════════════════════════
+//  ACCIONES ENTREGAS
+// ════════════════════════════════════════════════════════
+async function toggleDone(id){
+  const d=deliveries.find(x=>x.id===id);if(!d)return;
+  await patchDelivery(id,{completed:!d.completed,arrived_at:!d.completed?new Date().toLocaleTimeString('es-CL',{hour:'2-digit',minute:'2-digit'}):null});
+}
+async function deleteDelivery(id){
+  if(!confirm('¿Eliminar esta entrega?'))return;
+  await fetch(`/api/deliveries/${id}`,{method:'DELETE'});
+  if(markers[id]){map.removeLayer(markers[id]);delete markers[id];}
+  deliveries=deliveries.filter(x=>x.id!==id);
+  await loadCalSummary();renderAll();refreshMarkers();toast('🗑️ Eliminada');
+}
+async function patchDelivery(id,data){
+  const r=await fetch(`/api/deliveries/${id}`,{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify(data)});
+  if(r.ok){const u=await r.json();const i=deliveries.findIndex(x=>x.id===id);if(i>-1)deliveries[i]=u;renderAll();refreshMarkers();}
+}
+
+// ════════════════════════════════════════════════════════
+//  EDICIÓN INLINE DE ENTREGAS
+// ════════════════════════════════════════════════════════
+const editAddrData={};  // id -> {lat,lng,formatted_address,place_id} o null
+
+function toggleEditPanel(id){
+  const panel=document.getElementById(`edit-${id}`);
+  if(!panel)return;
+  const isOpen=panel.classList.contains('open');
+  // Cierra todos los demás
+  document.querySelectorAll('.card-edit.open').forEach(p=>p.classList.remove('open'));
+  if(!isOpen){
+    panel.classList.add('open');
+    // Attach Google Autocomplete si Google está disponible
+    attachEditAutocomplete(id);
+    // Scroll a la tarjeta
+    setTimeout(()=>{
+      const card=document.getElementById(`card-${id}`);
+      if(card)card.scrollIntoView({behavior:'smooth',block:'nearest'});
+    },100);
+  }
+}
+
+function closeEditPanel(id){
+  const panel=document.getElementById(`edit-${id}`);
+  if(panel)panel.classList.remove('open');
+  delete editAddrData[id];
+}
+
+
+
+async function saveEdit(id){
+  const eid=`edit-${id}`;
+  const d=deliveries.find(x=>x.id===id);
+  if(!d)return;
+
+  const name   =document.getElementById(`${eid}-name`).value.trim();
+  const addrRaw=document.getElementById(`${eid}-addr`).value.trim();
+  const ref    =document.getElementById(`${eid}-ref`).value.trim();
+  const ts     =document.getElementById(`${eid}-ts`).value;
+  const te     =document.getElementById(`${eid}-te`).value;
+  const driver =document.getElementById(`${eid}-driver`).value;
+
+  if(!name){toast('⚠️ El nombre no puede estar vacío');return;}
+
+  // Construir payload
+  const patch={name,reference:ref,time_start:ts,time_end:te,driver};
+
+  // Dirección: solo actualizar si cambió Y fue seleccionada de Google
+  const addrChanged=addrRaw&&addrRaw!==d.address;
+  if(addrChanged){
+    if(!editAddrData[id]){
+      toast('⚠️ Selecciona la dirección nueva desde las sugerencias de Google Maps');
+      return;
+    }
+    patch.address          =editAddrData[id].formatted_address;
+    patch.formatted_address=editAddrData[id].formatted_address;
+    patch.lat              =editAddrData[id].lat;
+    patch.lng              =editAddrData[id].lng;
+    patch.place_id         =editAddrData[id].place_id;
+
+    // Actualizar cliente también si existe
+    if(d.client_phone){
+      fetch(`/api/clients/${d.client_phone}`,{
+        method:'PATCH',headers:{'Content-Type':'application/json'},
+        body:JSON.stringify({
+          address:           editAddrData[id].formatted_address,
+          formatted_address: editAddrData[id].formatted_address,
+          lat:               editAddrData[id].lat,
+          lng:               editAddrData[id].lng,
+          place_id:          editAddrData[id].place_id,
+          verified:          true,
+          geocode_source:    'google',
+        })
+      });
+    }
+  }
+
+  const btn=document.querySelector(`#card-${id} .btn-save-edit`);
+  if(btn){btn.textContent='⏳ Guardando...';btn.disabled=true;}
+
+  await patchDelivery(id,patch);
+  closeEditPanel(id);
+  toast('✅ Entrega actualizada');
+}
+
+// ════════════════════════════════════════════════════════
+//  RENDER
+// ════════════════════════════════════════════════════════
+function renderAll(){renderList();renderRoutes();updateStats();}
+
+function renderList(){
+  const el=document.getElementById('delivery-list');
+  let list=deliveries;
+  if(currentFilter==='jorge')list=deliveries.filter(d=>d.driver==='jorge');
+  if(currentFilter==='diego')list=deliveries.filter(d=>d.driver==='diego');
+  if(currentFilter==='pending')list=deliveries.filter(d=>!d.completed);
+  document.getElementById('list-count').textContent=list.length;
+  if(!list.length){
+    el.innerHTML=`<div class="empty"><div class="empty-icon">📦</div><div class="empty-txt">Sin entregas para ${fmtDate(selectedDate)}.</div></div>`;
+    return;
+  }
+  el.innerHTML=list.map(d=>{
+    const ref=d.reference||(d._client&&d._client.reference)||'';
+    const eid=`edit-${d.id}`;
+    return`<div class="d-card ${d.driver} ${d.completed?'completed':''}" id="card-${d.id}">
+      <div class="card-top" onclick="focusDelivery('${d.id}')">
+        <div class="card-name">${d.name}</div>
+        <div class="card-btns">
+          <button class="ibtn edit" onclick="event.stopPropagation();toggleEditPanel('${d.id}')" title="Editar">✏️</button>
+          <button class="ibtn ok"   onclick="event.stopPropagation();toggleDone('${d.id}')">${d.completed?'↩':'✓'}</button>
+          <button class="ibtn del"  onclick="event.stopPropagation();deleteDelivery('${d.id}')">✕</button>
+        </div>
+      </div>
+      <div class="card-addr" onclick="focusDelivery('${d.id}')">📍 ${d.address}</div>
+      ${ref?`<div class="card-ref" onclick="focusDelivery('${d.id}')">🔖 ${ref}</div>`:''}
+      ${d.client_phone?`<div class="card-phone" onclick="focusDelivery('${d.id}')">📞 ${d.client_phone}</div>`:''}
+      <div class="card-tags" onclick="focusDelivery('${d.id}')">
+        ${d.product?`<span class="tag product">${d.product}</span>`:''}
+        ${d.amount?`<span class="tag">${d.amount}</span>`:''}
+        ${d.payment?`<span class="tag pay">${d.payment}</span>`:''}
+        <span class="tag time">⏰ ${d.time_start}–${d.time_end}</span>
+        <span class="tag driver ${d.driver}">${cap(d.driver)}</span>
+      </div>
+      ${d.arrived_at?`<div class="arrived-mark">✅ Llegó ${d.arrived_at}</div>`:''}
+
+      <!-- PANEL EDICIÓN -->
+      <div class="card-edit" id="${eid}">
+        <div class="edit-grid">
+          <div class="edit-field">
+            <div class="edit-label">Nombre</div>
+            <input id="${eid}-name" type="text" value="${(d.name||'').replace(/"/g,'&quot;')}">
+          </div>
+          <div class="edit-field" style="grid-column:1/-1">
+            <div class="edit-label">Dirección</div>
+            <div class="edit-addr-wrap">
+              <input id="${eid}-addr" type="text" value="${(d.address||'').replace(/"/g,'&quot;')}" autocomplete="off">
+              <span class="edit-addr-status" id="${eid}-addr-status"></span>
+            </div>
+            <div class="edit-addr-hint" id="${eid}-addr-hint">Escribe para buscar con Google Maps</div>
+          </div>
+          <div class="edit-field">
+            <div class="edit-label">Referencia</div>
+            <input id="${eid}-ref" type="text" value="${(ref||'').replace(/"/g,'&quot;')}">
+          </div>
+          <div class="edit-row" style="grid-column:1/-1">
+            <div class="edit-field">
+              <div class="edit-label">Hora inicio</div>
+              <input id="${eid}-ts" type="time" value="${d.time_start||''}">
+            </div>
+            <div class="edit-field">
+              <div class="edit-label">Hora fin</div>
+              <input id="${eid}-te" type="time" value="${d.time_end||''}">
+            </div>
+          </div>
+          <div class="edit-field" style="grid-column:1/-1">
+            <div class="edit-label">Repartidor</div>
+            <select id="${eid}-driver">
+              <option value="jorge" ${d.driver==='jorge'?'selected':''}>Jorge</option>
+              <option value="diego" ${d.driver==='diego'?'selected':''}>Diego</option>
+              <option value="otro"  ${d.driver==='otro'?'selected':''}>Otro</option>
+            </select>
+          </div>
+        </div>
+        <div class="edit-btns">
+          <button class="btn-save-edit" onclick="saveEdit('${d.id}')">💾 Guardar</button>
+          <button class="btn-cancel-edit" onclick="closeEditPanel('${d.id}')">Cancelar</button>
+        </div>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function renderRoutes(){
+  const el=document.getElementById('routes-body');
+  const drivers=[...new Set(deliveries.map(d=>d.driver))];
+  if(!drivers.length){el.innerHTML=`<div class="empty"><div class="empty-icon">🗺️</div><div class="empty-txt">Sin rutas para este día.</div></div>`;return;}
+  el.innerHTML=drivers.map(drv=>{
+    const dd=deliveries.filter(d=>d.driver===drv);
+    const stops=dd.map((d,i)=>{
+      const ref=d.reference||(d._client&&d._client.reference)||'';
+      return`<div class="stop">
+        <div class="snum" style="background:${COLORS[drv]};color:#000">${i+1}</div>
+        <div class="sbody">
+          <div class="sname">${d.name} ${d.completed?'✅':''}</div>
+          <div class="saddr">${d.address}</div>
+          ${ref?`<div class="sref">🔖 ${ref}</div>`:''}
+          ${d.client_phone?`<div class="saddr">📞 ${d.client_phone}</div>`:''}
+          <div class="stime">⏰ ${d.time_start} – ${d.time_end}</div>
+          <div class="stimes">
+            <input type="time" value="${d.departed_at||''}" onchange="patchDelivery('${d.id}',{departed_at:this.value})" title="Salida">
+            <input type="time" value="${d.arrived_at||''}" onchange="patchDelivery('${d.id}',{arrived_at:this.value})" title="Llegada">
+          </div>
+          <div class="slabels"><span>↗ Salida</span><span>↙ Llegada</span></div>
+        </div>
+      </div>`;
+    }).join('');
+    return`<div class="route-block"><div class="route-hd"><div class="rdriver ${drv}">${cap(drv)}</div><div class="rsub">${dd.filter(d=>!d.completed).length} pend · ${dd.length} total</div></div>${stops}</div>`;
+  }).join('');
+}
+
+function updateStats(){
+  document.getElementById('s-total').textContent=deliveries.length;
+  document.getElementById('s-pend').textContent=deliveries.filter(d=>!d.completed).length;
+  document.getElementById('s-done').textContent=deliveries.filter(d=>d.completed).length;
+}
+
+// ════════════════════════════════════════════════════════
+//  CLIENTES PAGE
+// ════════════════════════════════════════════════════════
+async function loadClients(){
+  const r=await fetch('/api/clients');
+  const clients=await r.json();
+  document.getElementById('clients-count').textContent=clients.length;
+  const el=document.getElementById('clients-list');
+  if(!clients.length){
+    el.innerHTML=`<div class="empty"><div class="empty-icon">👥</div><div class="empty-txt">Aún no hay clientes registrados.<br>Se crean automáticamente al agregar entregas.</div></div>`;
+    return;
+  }
+  el.innerHTML=clients.map(c=>`
+    <div class="client-card">
+      <div class="cc-top">
+        <div class="cc-name">${c.name||'Sin nombre'}${c.geocode_source==='google'?'<span class="cc-badge google">📍 Google</span>':''}</div>
+        <button class="ibtn del" onclick="deleteClient('${c.phone}')">✕</button>
+      </div>
+      <div class="cc-phone">📞 ${c.phone_raw||c.phone}</div>
+      <div class="cc-addr">📍 ${c.formatted_address||c.address||'Sin dirección'}</div>
+      ${c.reference?`<div class="cc-ref">🔖 ${c.reference}</div>`:''}
+    </div>
+  `).join('');
+}
+async function deleteClient(phone){
+  if(!confirm('¿Eliminar este cliente?'))return;
+  await fetch(`/api/clients/${phone}`,{method:'DELETE'});
+  loadClients();toast('🗑️ Cliente eliminado');
+}
+
+// ════════════════════════════════════════════════════════
+//  OPTIMIZADOR
+// ════════════════════════════════════════════════════════
+async function loadConfig(){
+  const r=await fetch('/api/config');
+  appConfig=await r.json();
+  // Cargar Google Maps si hay key
+  if(appConfig.google_maps_key){
+    loadGoogleMaps(appConfig.google_maps_key);
+  }
+  renderDPButtons();renderSettingsDP();
+  const keyEl=document.getElementById('s-gmaps-key');
+  if(keyEl)keyEl.value=appConfig.google_maps_key||'';
+}
+function renderDPButtons(){
+  const c=document.getElementById('dp-buttons');if(!c)return;
+  c.innerHTML=(appConfig.departure_points||[]).map(dp=>`
+    <div class="dp-btn" id="dpbtn-${dp.id}" onclick="selectDP('${dp.id}')">
+      <div class="dp-btn-name">📍 ${dp.name}</div>
+      <div class="dp-btn-addr">${dp.address}</div>
+    </div>`).join('');
+}
+function selectDP(id){
+  customDPSelected=false;
+  selectedDP=(appConfig.departure_points||[]).find(p=>p.id===id)||null;
+  document.querySelectorAll('.dp-btn').forEach(b=>b.classList.remove('selected'));
+  const btn=document.getElementById('dpbtn-'+id);if(btn)btn.classList.add('selected');
+  document.getElementById('custom-dp-card').classList.remove('selected');
+  document.getElementById('custom-dp-fields').style.display='none';
+}
+function selectCustomDP(){
+  customDPSelected=true;selectedDP=null;
+  document.querySelectorAll('.dp-btn').forEach(b=>b.classList.remove('selected'));
+  document.getElementById('custom-dp-card').classList.add('selected');
+  document.getElementById('custom-dp-fields').style.display='grid';
+}
+function setOptDriver(drv,el){
+  selectedOptDriver=drv;
+  document.querySelectorAll('.dchip').forEach(c=>c.classList.remove('active'));
+  el.classList.add('active');
+}
+
+async function runOptimizer(){
+  let origin = selectedDP;
+
+  if(customDPSelected){
+    const name = document.getElementById('cdp-name').value.trim() || 'Punto de partida';
+    const addrInput = document.getElementById('cdp-addr');
+    const addr = addrInput.value.trim();
+
+    if(!addr){
+      toast('⚠️ Ingresa la dirección de partida');
+      return;
+    }
+
+    const placeData = addrInput._placeData || null;
+
+    origin = {
+      id: 'custom',
+      name,
+      address: placeData?.formatted_address || addr,
+      formatted_address: placeData?.formatted_address || addr,
+      place_id: placeData?.place_id || ''
+    };
+  }
+
+  if(!origin){
+    toast('⚠️ Selecciona un punto de partida');
+    return;
+  }
+
+  const btn = document.getElementById('btn-optimize');
+  btn.textContent = '⏳ Calculando...';
+  btn.disabled = true;
+
+  const res = await fetch('/api/optimize', {
+    method: 'POST',
+    headers: {'Content-Type':'application/json'},
+    body: JSON.stringify({
+      origin,
+      date: selectedDate,
+      driver: selectedOptDriver,
+      driver_filter: !!selectedOptDriver
+    })
+  });
+
+  btn.textContent = '⚡ CALCULAR RUTA ÓPTIMA';
+  btn.disabled = false;
+
+  if(!res.ok){
+    const e = await res.json();
+    toast('❌ ' + e.error);
+    return;
+  }
+
+  const result = await res.json();
+  renderOptResult(result);
+  drawRouteOnMap(result);
+}
+
+function renderOptResult(result){
+  const el = document.getElementById('opt-result');
+
+  let stopsHTML = `
+    <div class="opt-stop">
+      <div class="opt-snum origin">★</div>
+      <div class="opt-sbody">
+        <div class="opt-sname">${result.origin.name || 'Origen'}</div>
+        <div class="opt-saddr">${result.origin.formatted_address || result.origin.address || ''}</div>
+      </div>
+    </div>
+  `;
+
+  result.ordered.forEach((s, i) => {
+    stopsHTML += `
+      <div class="opt-stop">
+        <div class="opt-snum">${i + 1}</div>
+        <div class="opt-sbody">
+          <div class="opt-sname">${s.name || 'Parada'}</div>
+          <div class="opt-saddr">${s.formatted_address || s.address || ''}</div>
+          ${s.reference ? `<div class="opt-sref">🔖 ${s.reference}</div>` : ''}
+        </div>
+      </div>
+    `;
+  });
+
+  el.innerHTML = `
+    <div class="opt-result">
+      <div class="opt-rh">
+        <div class="opt-rtitle">✅ Ruta preparada</div>
+        <div class="opt-stats">
+          <div class="opt-stat">
+            <div class="opt-stat-n">${result.stops}</div>
+            <div class="opt-stat-l">Paradas</div>
+          </div>
+        </div>
+      </div>
+      ${stopsHTML}
+      <button class="btn-gmaps" onclick="window.open('${result.maps_url}','_blank')">
+        <svg width="18" height="18" viewBox="0 0 48 48"><path d="M24 4C15.16 4 8 11.16 8 20c0 12 16 28 16 28s16-16 16-28c0-8.84-7.16-16-16-16z" fill="#4285f4"/><circle cx="24" cy="20" r="6" fill="white"/></svg>
+        ABRIR EN GOOGLE MAPS
+      </button>
+    </div>
+  `;
+}
+function calcKm(lat1,lng1,lat2,lng2){
+  const R=6371,dLat=(lat2-lat1)*Math.PI/180,dLng=(lng2-lng1)*Math.PI/180;
+  const a=Math.sin(dLat/2)**2+Math.cos(lat1*Math.PI/180)*Math.cos(lat2*Math.PI/180)*Math.sin(dLng/2)**2;
+  return (R*2*Math.atan2(Math.sqrt(a),Math.sqrt(1-a))).toFixed(1);
+}
+async function drawRouteOnMap(result){
+  clearRouteLines();
+
+  // Borra marcadores temporales de optimización anteriores
+  Object.keys(markers)
+    .filter(k => k.startsWith('opt_'))
+    .forEach(k => {
+      map.removeLayer(markers[k]);
+      delete markers[k];
+    });
+
+  if(typeof google === 'undefined' || !google.maps || !google.maps.DirectionsService){
+    toast('⚠️ Google Maps no está listo para dibujar la ruta');
+    return;
+  }
+
+  const directionsService = new google.maps.DirectionsService();
+
+  const toDirectionsLocation = (item) => {
+    if(item.place_id){
+      return { placeId: item.place_id };
+    }
+    return item.formatted_address || item.address;
+  };
+
+  const ordered = result.ordered || [];
+  if(!ordered.length){
+    toast('⚠️ No hay paradas para dibujar');
+    return;
+  }
+
+  const originLoc = toDirectionsLocation(result.origin);
+  const destinationLoc = toDirectionsLocation(ordered[ordered.length - 1]);
+
+  const waypointItems = ordered.slice(0, -1).map(stop => ({
+    location: toDirectionsLocation(stop),
+    stopover: true
+  }));
+
+  directionsService.route(
+    {
+      origin: originLoc,
+      destination: destinationLoc,
+      waypoints: waypointItems,
+      optimizeWaypoints: false,
+      travelMode: google.maps.TravelMode.DRIVING
+    },
+    (response, status) => {
+      if(status !== 'OK'){
+        console.error('Directions error:', status, response);
+        toast('❌ No se pudo dibujar la ruta');
+        return;
+      }
+
+      const route = response.routes[0];
+      const overviewPath = route.overview_path || [];
+
+      if(!overviewPath.length){
+        toast('⚠️ Google no devolvió trazado de ruta');
+        return;
+      }
+
+      const latlngs = overviewPath.map(p => [p.lat(), p.lng()]);
+
+      const line = L.polyline(latlngs, {
+        color: '#f0e040',
+        weight: 4,
+        opacity: 0.9
+      }).addTo(map);
+
+      routeLines.push(line);
+
+      // Marcador del origen
+      let originLatLng = null;
+      if(route.legs && route.legs.length){
+        const firstLeg = route.legs[0];
+        if(firstLeg.start_location){
+          originLatLng = [firstLeg.start_location.lat(), firstLeg.start_location.lng()];
+        }
+      }
+
+      if(originLatLng){
+        const om = L.marker(originLatLng, { icon: makeOriginIcon() })
+          .bindPopup(`
+            <div class="pu-name">🚀 ${result.origin.name || 'Origen'}</div>
+            <div class="pu-addr">${result.origin.formatted_address || result.origin.address || ''}</div>
+          `)
+          .addTo(map);
+
+        markers['opt_origin'] = om;
+      }
+
+      // Marcadores numerados para cada parada según el orden optimizado
+      if(route.legs && route.legs.length){
+        route.legs.forEach((leg, i) => {
+          const stop = ordered[i];
+          if(!stop || !leg.end_location) return;
+
+          const lat = leg.end_location.lat();
+          const lng = leg.end_location.lng();
+
+          const m = L.marker([lat, lng], {
+            icon: makeIcon(stop.driver || 'otro', i + 1, 28)
+          })
+          .bindPopup(`
+            <div class="pu-name">${i + 1}. ${stop.name || 'Parada'}</div>
+            <div class="pu-addr">${stop.formatted_address || stop.address || ''}</div>
+            ${stop.reference ? `<div class="pu-row"><span class="pu-lbl">🔖</span><span class="pu-val">${stop.reference}</span></div>` : ''}
+          `)
+          .addTo(map);
+
+          markers[`opt_${stop.id || i}`] = m;
+        });
+      }
+
+      map.fitBounds(line.getBounds(), { padding: [40, 40] });
+    }
+  );
+}
+
+// ════════════════════════════════════════════════════════
+//  AJUSTES
+// ════════════════════════════════════════════════════════
+function renderSettingsDP(){
+  const container=document.getElementById('settings-dp-list');if(!container)return;
+  const dps=appConfig.departure_points||[];
+  container.innerHTML=dps.map((dp,i)=>`
+    <div class="dp-edit-row">
+      <div>
+        <div class="field" style="margin-bottom:.3rem">
+          <label>Nombre</label><input type="text" id="sdp-name-${i}" value="${dp.name}">
+        </div>
+        <div class="field">
+          <label>Dirección</label><input type="text" id="sdp-addr-${i}" value="${dp.address}" autocomplete="off">
+        </div>
+      </div>
+      <button class="btn-secondary" onclick="removeDP(${i})" style="align-self:flex-start;margin-top:1.6rem;color:var(--acc3)">✕</button>
+    </div>
+  `).join('');
+  // Attach autocomplete a cada input de dirección en ajustes
+  whenGoogleReady(()=>{
+    dps.forEach((_,i)=>{
+      const el=document.getElementById(`sdp-addr-${i}`);
+      if(el&&!el._acDone){
+        el._acDone=true;
+        const ac=new google.maps.places.Autocomplete(el,{componentRestrictions:{country:'cl'},fields:['formatted_address','geometry']});
+        el.addEventListener('keydown',e=>{if(e.key==='Enter')e.preventDefault();});
+        ac.addListener('place_changed',()=>{
+          const p = ac.getPlace();
+          if(p){
+            el.value = p.formatted_address || el.value;
+            el._placeId = p.place_id || '';
+          }
+        });
+      }
+    });
+  });
+}
+function addNewDP(){
+  appConfig.departure_points.push({
+    id: 'dp' + Date.now(),
+    name: 'Nuevo punto',
+    address: '',
+    formatted_address: '',
+    place_id: ''
+  });
+  renderSettingsDP();
+}
+function removeDP(i){appConfig.departure_points.splice(i,1);renderSettingsDP();}
+
+async function saveSettings(){
+  const dps=appConfig.departure_points;
+  const btn=document.querySelector('#page-settings .btn-primary');
+  btn.textContent='⏳ Guardando...';btn.disabled=true;
+  for(let i=0;i<dps.length;i++){
+    const ne=document.getElementById(`sdp-name-${i}`);
+    const ae=document.getElementById(`sdp-addr-${i}`);
+    if(ne)dps[i].name=ne.value.trim();
+    if(ae){
+      const na = ae.value.trim();
+      dps[i].address = na;
+      dps[i].formatted_address = na;
+
+      if(ae._placeId){
+        dps[i].place_id = ae._placeId;
+      }
+    }
+  }
+  // Save API key
+  const keyEl=document.getElementById('s-gmaps-key');
+  const newKey=keyEl?keyEl.value.trim():'';
+  await fetch('/api/config',{method:'POST',headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({departure_points:dps,google_maps_key:newKey})});
+  appConfig.departure_points=dps;
+  appConfig.google_maps_key=newKey;
+  // Load Google Maps if key was just added
+  if(newKey&&!googleMapsLoaded)loadGoogleMaps(newKey);
+  renderDPButtons();renderSettingsDP();
+  btn.textContent='💾 GUARDAR';btn.disabled=false;
+  toast('✅ Guardado');
+}
+
+// ════════════════════════════════════════════════════════
+//  NAVEGACIÓN
+// ════════════════════════════════════════════════════════
+function switchPanel(tab,el){
+  document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
+  document.querySelectorAll('.nb').forEach(b=>b.classList.remove('active'));
+  document.getElementById('page-'+tab).classList.add('active');
+  if(el)el.classList.add('active');
+  if(tab==='clients')loadClients();
+  if(tab==='optimizer'||tab==='list')clearRouteLines();
+}
+function mobSwitch(tab,el){
+  const mapCol=document.getElementById('map-col');
+  const panel=document.querySelector('.panel');
+  if(tab==='map'){
+    panel.style.display='none';mapCol.classList.add('mob-show');
+    setTimeout(()=>map.invalidateSize(),200);
+  } else {
+    panel.style.display='';mapCol.classList.remove('mob-show');switchPanel(tab,null);
+  }
+  document.querySelectorAll('.mnb').forEach(b=>b.classList.remove('active'));
+  el.classList.add('active');
+  if(tab==='clients')loadClients();
+}
+
+// ════════════════════════════════════════════════════════
+//  UTILS
+// ════════════════════════════════════════════════════════
+function focusDelivery(id){
+  const d=deliveries.find(x=>x.id===id);
+  if(d&&d.lat&&markers[id]){map.setView([d.lat,d.lng],15,{animate:true});markers[id].openPopup();}
+}
+function setFilter(f,el){
+  currentFilter=f;
+  document.querySelectorAll('.chip').forEach(c=>c.classList.remove('active'));
+  el.classList.add('active');renderList();
+}
+function syncFormDate(){const fi=document.getElementById('f-date');if(fi)fi.value=selectedDate;}
+function todayStr(){const d=new Date();return`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;}
+function fmtDate(s){const[y,m,d]=s.split('-').map(Number);const M=['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'];return`${d} ${M[m-1]} ${y}`;}
+function v(id){return document.getElementById(id).value.trim();}
+function cap(s){return s?s.charAt(0).toUpperCase()+s.slice(1):'';}
+function toast(msg){const t=document.getElementById('toast');t.textContent=msg;t.classList.add('show');setTimeout(()=>t.classList.remove('show'),2800);}
+</script>
+</body>
+</html>
