@@ -31,11 +31,7 @@ def normalize_phone(raw):
 # ── Config ────────────────────────────────────────────────────────────────────
 
 DEFAULT_CONFIG = {
-    "departure_points": [
-        {"id":"dp1","name":"Casa Jorge","address":"Avenida laguna grande 1120 casa 36","lat":-36.84763,"lng":-73.11652},
-        {"id":"dp2","name":"Sucursal Norte","address":"Freire 840, Concepción",    "lat":-36.8150,"lng":-73.0510},
-        {"id":"dp3","name":"Sucursal Penco","address":"Zenteno 100, Penco",        "lat":-36.7200,"lng":-72.9850},
-    ]
+    "departure_points": []
 }
 
 def load_config():
