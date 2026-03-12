@@ -60,3 +60,6 @@ DATA_DIR = BASE_DIR
 DELIVERIES_FILE = DATA_DIR / 'deliveries.json'
 CLIENTS_FILE    = DATA_DIR / 'clients.json'
 CONFIG_FILE     = DATA_DIR / 'config.json'
+
+# Stock diario
+STOCK_FILE = DATA_DIR / 'stock.json'

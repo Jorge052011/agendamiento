@@ -175,6 +175,7 @@ def deliveries(request):
         "notes": data.get("notes", "").strip(),
         "lat": data.get("lat") or (client.get("lat") if client else None),
         "lng": data.get("lng") or (client.get("lng") if client else None),
+        "stock_items": data.get("stock_items", {}),
         "completed": False,
         "arrived_at": None,
         "departed_at": None,
@@ -451,3 +452,181 @@ def gps_clear(request):
     if driver in _gps_store:
         del _gps_store[driver]
     return JsonResponse({"ok": True})
+
+# ═══════════════════════════════════════════════════════════════════════════════
+#  CATÁLOGO DE PRODUCTOS (SKUs fijos de arena de gato)
+# ═══════════════════════════════════════════════════════════════════════════════
+
+PRODUCTS = [
+    {"id": "LAV-8",    "name": "Arena Lavanda",              "unit": "Bolsa 8kg",  "color": "#f0e040"},
+    {"id": "LAV-20",   "name": "Arena Lavanda",              "unit": "Bolsa 20kg", "color": "#f0e040"},
+    {"id": "LAV-CA-8", "name": "Arena Lavanda + Carbón",     "unit": "Bolsa 8kg",  "color": "#40c8f0"},
+    {"id": "LAV-CA-20","name": "Arena Lavanda + Carbón",     "unit": "Bolsa 20kg", "color": "#40c8f0"},
+    {"id": "CA-TB-20", "name": "Arena Carbón + Talco Bebé",  "unit": "Bolsa 20kg", "color": "#f04090"},
+]
+
+@require_http_methods(["GET"])
+def products(request):
+    return JsonResponse(PRODUCTS, safe=False)
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+#  STOCK DIARIO
+# ═══════════════════════════════════════════════════════════════════════════════
+
+@csrf_exempt
+@require_http_methods(["GET", "POST"])
+def stock(request):
+    """
+    GET  ?date=YYYY-MM-DD&driver=jorge|diego|otro
+         Devuelve stock del día: inicial, consumido, balance y pedidos pendientes.
+    POST Guarda/actualiza stock inicial del día para un conductor.
+    """
+    from django.conf import settings as dj_settings
+
+    stock_file = dj_settings.STOCK_FILE
+
+    if request.method == "GET":
+        date_filter   = request.GET.get("date", datetime.today().strftime("%Y-%m-%d"))
+        driver_filter = request.GET.get("driver", "").lower().strip()
+
+        all_stock     = load_json(stock_file)
+        all_deliveries = load_json(dj_settings.DELIVERIES_FILE)
+
+        # Filtrar entregas del día
+        day_deliveries = [
+            d for d in all_deliveries
+            if d.get("delivery_date") == date_filter
+            and (not driver_filter or d.get("driver") == driver_filter)
+        ]
+
+        # Calcular demanda total del día por producto
+        demand = {p["id"]: 0 for p in PRODUCTS}
+        for d in day_deliveries:
+            items = d.get("stock_items") or {}
+            # Solo contar si tiene stock_items con al menos un valor > 0
+            has_items = any(int(v or 0) > 0 for v in items.values())
+            if has_items:
+                for pid, qty in items.items():
+                    if pid in demand:
+                        demand[pid] += int(qty or 0)
+
+        # Calcular ya entregado
+        delivered = {p["id"]: 0 for p in PRODUCTS}
+        for d in day_deliveries:
+            if d.get("completed"):
+                items = d.get("stock_items") or {}
+                has_items = any(int(v or 0) > 0 for v in items.values())
+                if has_items:
+                    for pid, qty in items.items():
+                        if pid in delivered:
+                            delivered[pid] += int(qty or 0)
+
+        # Pendiente de entregar
+        pending = {pid: demand[pid] - delivered[pid] for pid in demand}
+
+        # Stock inicial cargado al auto
+        stock_key = f"{date_filter}_{driver_filter}" if driver_filter else date_filter
+        stock_entry = next(
+            (s for s in all_stock
+             if s.get("date") == date_filter and
+             (not driver_filter or s.get("driver") == driver_filter)),
+            None
+        )
+        initial = stock_entry.get("initial", {}) if stock_entry else {}
+
+        # Balance: inicial - entregado
+        balance = {}
+        alerts = []
+        for p in PRODUCTS:
+            pid = p["id"]
+            ini = int(initial.get(pid, 0))
+            bal = ini - delivered.get(pid, 0)
+            balance[pid] = bal
+            # Alerta si balance restante no alcanza para pedidos pendientes
+            if bal < pending.get(pid, 0):
+                alerts.append({
+                    "product_id":   pid,
+                    "product_name": p["name"],
+                    "unit":         p["unit"],
+                    "balance":      bal,
+                    "pending":      pending[pid],
+                    "shortage":     pending[pid] - bal,
+                })
+
+        return JsonResponse({
+            "date":      date_filter,
+            "driver":    driver_filter,
+            "products":  PRODUCTS,
+            "demand":    demand,
+            "delivered": delivered,
+            "pending":   pending,
+            "initial":   initial,
+            "balance":   balance,
+            "alerts":    alerts,
+            "deliveries_count": len(day_deliveries),
+            "deliveries_detail": [
+                {
+                    "id": d.get("id"),
+                    "name": d.get("name"),
+                    "completed": d.get("completed"),
+                    "stock_items": d.get("stock_items") or {},
+                }
+                for d in day_deliveries
+            ],
+        })
+
+    # POST — guardar stock inicial
+    data   = json.loads(request.body)
+    date   = data.get("date", datetime.today().strftime("%Y-%m-%d"))
+    driver = data.get("driver", "").lower().strip()
+    initial = data.get("initial", {})
+
+    if not driver:
+        return JsonResponse({"error": "driver requerido"}, status=400)
+
+    all_stock = load_json(stock_file)
+    existing = next(
+        (s for s in all_stock if s.get("date") == date and s.get("driver") == driver),
+        None
+    )
+    if existing:
+        existing["initial"] = initial
+        existing["updated_at"] = datetime.now().isoformat()
+    else:
+        all_stock.append({
+            "date":       date,
+            "driver":     driver,
+            "initial":    initial,
+            "created_at": datetime.now().isoformat(),
+            "updated_at": datetime.now().isoformat(),
+        })
+    save_json(stock_file, all_stock)
+    return JsonResponse({"ok": True, "date": date, "driver": driver, "initial": initial})
+
+
+@csrf_exempt
+@require_http_methods(["GET"])
+def stock_summary(request):
+    """Resumen del día para el despachador: cuánto debe cargar cada conductor."""
+    from django.conf import settings as dj_settings
+
+    date_filter = request.GET.get("date", datetime.today().strftime("%Y-%m-%d"))
+    all_deliveries = load_json(dj_settings.DELIVERIES_FILE)
+    day_deliveries = [d for d in all_deliveries if d.get("delivery_date") == date_filter]
+
+    summary = {}
+    for driver in ["jorge", "diego", "otro"]:
+        demand = {p["id"]: 0 for p in PRODUCTS}
+        driver_deliveries = [d for d in day_deliveries if d.get("driver") == driver]
+        for d in driver_deliveries:
+            items = d.get("stock_items", {})
+            for pid, qty in items.items():
+                if pid in demand:
+                    demand[pid] += int(qty or 0)
+        summary[driver] = {
+            "total_deliveries": len(driver_deliveries),
+            "demand": demand,
+        }
+
+    return JsonResponse({"date": date_filter, "summary": summary, "products": PRODUCTS})

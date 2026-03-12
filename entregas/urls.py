@@ -14,4 +14,8 @@ urlpatterns = [
     path('api/gps/update', views.gps_update, name='gps_update'),
     path('api/gps/status', views.gps_status, name='gps_status'),
     path('api/gps/clear',  views.gps_clear,  name='gps_clear'),
+    # Stock / Carga del Día
+    path('api/products',      views.products,      name='products'),
+    path('api/stock',         views.stock,          name='stock'),
+    path('api/stock/summary', views.stock_summary,  name='stock_summary'),
 ]
