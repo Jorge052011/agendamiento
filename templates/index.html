@@ -100,6 +100,10 @@ header{background:var(--surf);border-bottom:1px solid var(--brd);display:flex;al
 .chip.diego.active{border-color:var(--diego);color:var(--diego);}
 .map-col{flex:1;position:relative;display:flex;flex-direction:column;min-width:200px;overflow:hidden;height:100%;}
 #map{flex:1;}
+/* Filtro nocturno: tono oscuro azulado legible, similar a Google Maps noche */
+#map.night-mode .leaflet-tile-pane{
+  filter: invert(1) hue-rotate(180deg) brightness(1.1) saturate(1.2) contrast(0.9);
+}
 .map-legend{position:absolute;top:10px;right:10px;z-index:500;background:rgba(10,10,15,.93);border:1px solid var(--brd);border-radius:8px;padding:8px 11px;font-size:.68rem;backdrop-filter:blur(10px);}
 .ml-title{font-family:'Syne',sans-serif;font-weight:700;font-size:.66rem;color:var(--mut);text-transform:uppercase;letter-spacing:1px;margin-bottom:4px;}
 .ml-item{display:flex;align-items:center;gap:5px;margin-bottom:2px;}
@@ -197,6 +201,9 @@ textarea{resize:vertical;min-height:50px;}
 .btn-cancel-edit{background:var(--surf2);color:var(--mut);border:1px solid var(--brd);font-family:'DM Sans',sans-serif;font-size:.75rem;border-radius:7px;padding:8px 12px;cursor:pointer;}
 .btn-cancel-edit:hover{color:var(--txt);}
 .ibtn.edit:hover{color:var(--acc2);}
+.ibtn.nav:hover{color:#40f090;}
+.btn-nav-route{background:var(--surf3);border:1px solid var(--brd);border-radius:7px;color:#40f090;font-size:.72rem;font-family:'DM Sans',sans-serif;padding:5px 12px;cursor:pointer;transition:all .18s;display:flex;align-items:center;gap:5px;white-space:nowrap;}
+.btn-nav-route:hover{border-color:#40f090;background:rgba(64,240,144,.08);}
 
 
 /* ── ROUTES ── */
@@ -216,6 +223,28 @@ textarea{resize:vertical;min-height:50px;}
 .stimes input{flex:1;font-size:.66rem;padding:4px 6px;}
 .slabels{display:flex;gap:4px;margin-top:1px;}
 .slabels span{flex:1;font-size:.56rem;color:var(--mut);}
+.btn-nav-stop{background:none;border:1px solid rgba(64,240,144,.35);border-radius:6px;color:#40f090;
+  font-size:.65rem;font-family:'DM Sans',sans-serif;padding:4px 9px;cursor:pointer;
+  transition:all .18s;display:flex;align-items:center;gap:4px;margin-top:5px;width:100%;}
+.btn-nav-stop:hover{background:rgba(64,240,144,.1);border-color:#40f090;}
+.stop.completed-stop{opacity:.4;}
+.stop.completed-stop .btn-nav-stop{display:none;}
+.btn-apply-order{background:var(--grn);color:#000;font-family:'Syne',sans-serif;font-weight:700;
+  font-size:.86rem;border:none;border-radius:9px;padding:11px;cursor:pointer;width:100%;
+  margin-top:.4rem;transition:all .2s;letter-spacing:.3px;}
+.btn-apply-order:hover{filter:brightness(1.1);}
+/* Botones navegar individual — Google Maps + Waze */
+.btn-nav-row{display:flex;gap:5px;margin-top:6px;}
+.btn-ir-gmaps,.btn-ir-waze{
+  flex:1;padding:7px 6px;border:none;border-radius:7px;
+  font-family:'Syne',sans-serif;font-weight:700;font-size:.72rem;
+  letter-spacing:.2px;cursor:pointer;text-align:center;
+  transition:filter .18s;white-space:nowrap;}
+.btn-ir-gmaps{background:#1a73e8;color:#fff;}
+.btn-ir-gmaps:hover{filter:brightness(1.15);}
+.btn-ir-waze{background:#05c8f0;color:#000;}
+.btn-ir-waze:hover{filter:brightness(1.1);}
+.stop.completed-stop .btn-nav-row{display:none;}
 
 /* ── OPTIMIZER ── */
 .opt-section{margin-bottom:.9rem;}
@@ -964,14 +993,57 @@ function _doAttachEditAC(id){
 // ════════════════════════════════════════════════════════
 //  MAPA (Leaflet)
 // ════════════════════════════════════════════════════════
+// ════════════════════════════════════════════════════════
+//  NAVEGACIÓN GOOGLE MAPS
+// ════════════════════════════════════════════════════════
+function navigateWaze(id){
+  const d=deliveries.find(x=>x.id===id);
+  if(!d) return;
+  // Coordenadas → más preciso; si no, usa dirección de texto
+  const dest = (d.lat && d.lng) ? `${d.lat},${d.lng}` : encodeURIComponent(d.address);
+  window.open(`https://www.google.com/maps/dir/?api=1&destination=${dest}&travelmode=driving`, '_blank');
+}
+
+function navigateRouteWaze(driver){
+  const stops = deliveries.filter(d => d.driver === driver && !d.completed && d.lat && d.lng);
+  const all   = deliveries.filter(d => d.driver === driver && d.lat && d.lng);
+  const pool  = stops.length ? stops : all;
+  if(!pool.length){ toast('⚠️ Sin coordenadas para navegar'); return; }
+
+  if(pool.length === 1){
+    window.open(`https://www.google.com/maps/dir/?api=1&destination=${pool[0].lat},${pool[0].lng}&travelmode=driving`, '_blank');
+    return;
+  }
+  // Google Maps multi-parada: origen/wp1/wp2/.../destino
+  // Separamos destino final del resto (intermedios van como waypoints)
+  const dest      = `${pool[pool.length-1].lat},${pool[pool.length-1].lng}`;
+  const waypoints = pool.slice(0, -1).map(d=>`${d.lat},${d.lng}`).join('|');
+  const url = `https://www.google.com/maps/dir/?api=1&destination=${dest}&waypoints=${encodeURIComponent(waypoints)}&travelmode=driving`;
+  window.open(url, '_blank');
+  toast(`🗺️ Abriendo ${pool.length} paradas en Google Maps`);
+}
+
+function getMapTileLayer(isLight){
+  // Ambos modos usan Voyager (rico en colores y jerarquía).
+  // El modo noche aplica un filtro CSS invert+hue que convierte el mapa
+  // en un estilo oscuro tipo Waze/Google Maps noche.
+  return L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png',{
+    attribution:'© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> © <a href="https://carto.com/">CARTO</a>',
+    maxZoom:20, subdomains:'abcd'
+  });
+}
+
+function applyMapNightMode(isLight){
+  const mapEl = document.getElementById('map');
+  if(isLight){ mapEl.classList.remove('night-mode'); }
+  else        { mapEl.classList.add('night-mode');    }
+}
+
 function initMap(){
   map=L.map('map',{center:[-36.82,-73.05],zoom:12});
   const isLight=document.documentElement.classList.contains('light');
-  const tileUrl=isLight
-    ? 'https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png'
-    : 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png';
-  L.tileLayer(tileUrl,{attribution:'©OpenStreetMap ©CartoDB',maxZoom:19}).addTo(map);
-  // Forzar recálculo de tamaño tras renderizado
+  getMapTileLayer(isLight).addTo(map);
+  applyMapNightMode(isLight);
   setTimeout(()=>map.invalidateSize(),100);
   setTimeout(()=>map.invalidateSize(),500);
 }
@@ -1365,6 +1437,7 @@ function renderList(){
       <div class="card-top" onclick="focusDelivery('${d.id}')">
         <div class="card-name">${d.name}</div>
         <div class="card-btns">
+          <button class="ibtn nav"  onclick="event.stopPropagation();navigateWaze('${d.id}')" title="Navegar con Waze">🧭</button>
           <button class="ibtn edit" onclick="event.stopPropagation();toggleEditPanel('${d.id}')" title="Editar">✏️</button>
           <button class="ibtn ok"   onclick="event.stopPropagation();toggleDone('${d.id}')">${d.completed?'↩':'✓'}</button>
           <button class="ibtn del"  onclick="event.stopPropagation();deleteDelivery('${d.id}')">✕</button>
@@ -1437,7 +1510,9 @@ function renderRoutes(){
     const dd=deliveries.filter(d=>d.driver===drv);
     const stops=dd.map((d,i)=>{
       const ref=d.reference||(d._client&&d._client.reference)||'';
-      return`<div class="stop">
+      const navDest = (d.lat && d.lng) ? `${d.lat},${d.lng}` : encodeURIComponent(d.address);
+      const navUrl  = `https://www.google.com/maps/dir/?api=1&destination=${navDest}&travelmode=driving&dir_action=navigate`;
+      return`<div class="stop ${d.completed?'completed-stop':''}">
         <div class="snum" style="background:${COLORS[drv]};color:#000">${i+1}</div>
         <div class="sbody">
           <div class="sname">${d.name} ${d.completed?'✅':''}</div>
@@ -1450,10 +1525,14 @@ function renderRoutes(){
             <input type="time" value="${d.arrived_at||''}" onchange="patchDelivery('${d.id}',{arrived_at:this.value})" title="Llegada">
           </div>
           <div class="slabels"><span>↗ Salida</span><span>↙ Llegada</span></div>
+          ${!d.completed?`<div class="btn-nav-row">
+            <button class="btn-ir-gmaps" onclick="window.open('${navUrl}','_blank')">🗺️ Google Maps</button>
+            <button class="btn-ir-waze"  onclick="window.open('https://waze.com/ul?ll=${d.lat&&d.lng?d.lat+','+d.lng:''}&q=${encodeURIComponent(d.address)}&navigate=yes','_blank')">🚗 Waze</button>
+          </div>`:''}
         </div>
       </div>`;
     }).join('');
-    return`<div class="route-block"><div class="route-hd"><div class="rdriver ${drv}">${cap(drv)}</div><div class="rsub">${dd.filter(d=>!d.completed).length} pend · ${dd.length} total</div></div>${stops}</div>`;
+    return`<div class="route-block"><div class="route-hd"><div class="rdriver ${drv}">${cap(drv)}</div><div class="rsub">${dd.filter(d=>!d.completed).length} pend · ${dd.length} total</div><button class="btn-nav-route" onclick="navigateRouteWaze('${drv}')">🧭 Navegar ruta</button></div>${stops}</div>`;
   }).join('');
 }
 
@@ -1621,6 +1700,8 @@ function renderOptResult(result){
       s.product ? `<span class="opt-order-chip product">📦 ${s.product}</span>` : '',
       s.payment ? `<span class="opt-order-chip payment">💳 ${s.payment}</span>` : '',
     ].filter(Boolean).join('');
+    const navDest = (s.lat && s.lng) ? `${s.lat},${s.lng}` : encodeURIComponent(s.formatted_address || s.address || '');
+    const navUrl  = `https://www.google.com/maps/dir/?api=1&destination=${navDest}&travelmode=driving&dir_action=navigate`;
     return `
     <div class="opt-stop draggable" data-idx="${i}">
       <div class="opt-drag-handle" title="Arrastra para reordenar">⠿</div>
@@ -1630,6 +1711,10 @@ function renderOptResult(result){
         <div class="opt-saddr">${s.formatted_address || s.address || ''}</div>
         ${s.reference ? `<div class="opt-sref">🔖 ${s.reference}</div>` : ''}
         ${chips ? `<div class="opt-order">${chips}</div>` : ''}
+        <div class="btn-nav-row">
+          <button class="btn-ir-gmaps" onclick="window.open('${navUrl}','_blank')">🗺️ Google Maps</button>
+          <button class="btn-ir-waze"  onclick="window.open('https://waze.com/ul?ll=${s.lat&&s.lng?s.lat+','+s.lng:''}&q=${encodeURIComponent(s.formatted_address||s.address||'')}&navigate=yes','_blank')">🚗 Waze</button>
+        </div>
       </div>
     </div>`;
   }).join('');
@@ -1652,6 +1737,9 @@ function renderOptResult(result){
       ${originHTML}
       <div class="opt-drag-hint">⠿ Arrastra las paradas para cambiar el orden</div>
       <div id="opt-sortable-list">${stopsHTML}</div>
+      <button class="btn-apply-order" onclick="applyOptOrder()">
+        ✅ APLICAR ESTE ORDEN A TODAS LAS VISTAS
+      </button>
       <button class="btn-ver-mapa" onclick="verRutaEnMapa()">
         🗺️ VER RUTA EN MAPA
       </button>
@@ -1688,6 +1776,24 @@ function renderOptResult(result){
       }
     });
   }
+}
+
+function applyOptOrder(){
+  if(!currentOptResult || !currentOptResult.ordered.length){
+    toast('⚠️ Primero calcula una ruta optimizada');
+    return;
+  }
+  const ordered = currentOptResult.ordered;
+
+  // Reordenar el array deliveries según el orden de Optimizar
+  // Las entregas que no estén en el resultado (otro conductor/día) se mantienen al final
+  const orderedIds = ordered.map(s => s.id).filter(Boolean);
+  const inOrder    = orderedIds.map(id => deliveries.find(d => d.id === id)).filter(Boolean);
+  const rest       = deliveries.filter(d => !orderedIds.includes(d.id));
+  deliveries       = [...inOrder, ...rest];
+
+  renderAll();
+  toast('✅ Orden aplicado — Pedidos y Rutas actualizados');
 }
 
 function verRutaEnMapa(){
@@ -2038,10 +2144,8 @@ function toggleTheme(){
   // Actualizar mapa de fondo
   if(map){
     map.eachLayer(l=>{if(l._url)map.removeLayer(l);});
-    const tileUrl=isLight
-      ? 'https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png'
-      : 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png';
-    L.tileLayer(tileUrl,{attribution:'©OpenStreetMap ©CartoDB',maxZoom:19}).addTo(map);
+    getMapTileLayer(isLight).addTo(map);
+    applyMapNightMode(isLight);
   }
 }
 
