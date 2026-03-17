@@ -462,6 +462,7 @@ textarea{resize:vertical;min-height:50px;}
         <div class="chip active" onclick="setFilter('all',this)">Todos</div>
         <div class="chip jorge"  onclick="setFilter('jorge',this)">Jorge</div>
         <div class="chip diego"  onclick="setFilter('diego',this)">Diego</div>
+        <div class="chip"        onclick="setFilter('otro',this)">Otro</div>
         <div class="chip"        onclick="setFilter('pending',this)">Pendientes</div>
       </div>
       <div class="scrollable" id="delivery-list"></div>
@@ -1424,6 +1425,7 @@ function renderList(){
   let list=deliveries;
   if(currentFilter==='jorge')list=deliveries.filter(d=>d.driver==='jorge');
   if(currentFilter==='diego')list=deliveries.filter(d=>d.driver==='diego');
+  if(currentFilter==='otro') list=deliveries.filter(d=>d.driver==='otro');
   if(currentFilter==='pending')list=deliveries.filter(d=>!d.completed);
   document.getElementById('list-count').textContent=list.length;
   if(!list.length){
