@@ -1149,6 +1149,7 @@ function renderCalendar(){
 }
 async function selectDate(ds){
   selectedDate=ds;syncFormDate();
+  currentOptResult = null; // ← al cambiar fecha, liberar ruta anterior de memoria
   document.getElementById('hdr-date').textContent=(ds===todayStr()?'Hoy · ':'')+fmtDate(ds);
   renderCalendar();
   const r=await fetch(`/api/deliveries?date=${ds}`);
@@ -1609,6 +1610,7 @@ function selectCustomDP(){
 }
 function setOptDriver(drv,el){
   selectedOptDriver=drv;
+  currentOptResult = null; // ← al cambiar conductor, liberar ruta anterior de memoria
   document.querySelectorAll('.dchip').forEach(c=>c.classList.remove('active'));
   el.classList.add('active');
 }
@@ -1675,12 +1677,32 @@ async function runOptimizer(){
 
   const result = await res.json();
   renderOptResult(result);
+  _saveOpt(); // ← persistir resultado nuevo
   // El usuario dibuja manualmente con "Ver ruta en mapa"
 }
 
 // Estado global de la ruta optimizada (mutable por drag)
 let currentOptResult = null;
 let _drawGen = 0; // incrementa cada vez que se pide un nuevo dibujado
+
+// ── Persistencia del optimizador en localStorage ──────────────────────────
+function _optKey(){
+  // Clave única por fecha + conductor para no mezclar días ni repartidores
+  const d = selectedDate || 'nodate';
+  const v = selectedOptDriver || 'all';
+  return `rt-opt:${d}:${v}`;
+}
+function _saveOpt(){
+  if(!currentOptResult) return;
+  try { localStorage.setItem(_optKey(), JSON.stringify(currentOptResult)); } catch(e){}
+}
+function _loadOpt(){
+  try {
+    const raw = localStorage.getItem(_optKey());
+    return raw ? JSON.parse(raw) : null;
+  } catch(e){ return null; }
+}
+// ─────────────────────────────────────────────────────────────────────────
 
 function renderOptResult(result){
   currentOptResult = result;
@@ -1775,6 +1797,7 @@ function renderOptResult(result){
 
         // Guardar nuevo orden — el usuario verá los cambios al presionar "Ver en mapa"
         currentOptResult = { ...currentOptResult, ordered: snapshot };
+        _saveOpt(); // ← persistir orden arrastrado
       }
     });
   }
@@ -2091,6 +2114,11 @@ function switchPanel(tab,el){
     // Limpiar TODO el mapa al entrar a optimizar
     clearRouteLines();
     Object.keys(markers).forEach(k=>{ map.removeLayer(markers[k]); delete markers[k]; });
+    // ── Restaurar última ruta guardada si no hay una activa en memoria ──
+    if(!currentOptResult){
+      const saved = _loadOpt();
+      if(saved){ renderOptResult(saved); toast('📋 Ruta anterior restaurada'); }
+    }
   } else {
     // Al salir de optimizar: limpiar ruta y restaurar marcadores del día
     clearRouteLines();
