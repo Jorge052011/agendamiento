@@ -663,6 +663,9 @@ textarea{resize:vertical;min-height:50px;}
     <div id="page-optimizer" class="page">
       <div class="panel-hd"><div class="panel-title">⚡ Optimizar Ruta</div></div>
       <div class="scrollable">
+        <!-- Panel diagnóstico visible en móvil -->
+        <div id="opt-debug" style="background:#1a1a2e;color:#0f0;font-size:11px;padding:6px 10px;border-radius:6px;margin:6px 0;display:none;white-space:pre-wrap;font-family:monospace;"></div>
+        <button onclick="runOptDiag()" style="font-size:11px;padding:4px 10px;margin-bottom:6px;background:#333;color:#aaa;border:1px solid #555;border-radius:5px;width:100%">🔍 Diagnóstico servidor</button>
         <div class="opt-section">
           <div class="opt-stitle">1 · Punto de partida</div>
           <div class="dp-grid" id="dp-buttons"></div>
@@ -1682,7 +1685,33 @@ async function runOptimizer(){
   // El usuario dibuja manualmente con "Ver ruta en mapa"
 }
 
-// Estado global de la ruta optimizada (mutable por drag)
+// ── Diagnóstico visible en móvil ─────────────────────────────────────────
+async function runOptDiag(){
+  const el = document.getElementById('opt-debug');
+  el.style.display = 'block';
+  el.textContent = '⏳ Consultando servidor...\n';
+  el.textContent += `Fecha: ${selectedDate}\nConductor: "${selectedOptDriver || ''}"\n`;
+  try {
+    const driver = selectedOptDriver || '';
+    const url = `/api/opt-route?date=${selectedDate}&driver=${encodeURIComponent(driver)}`;
+    el.textContent += `URL: ${url}\n`;
+    const res = await fetch(url);
+    el.textContent += `Status: ${res.status}\n`;
+    if(res.ok){
+      const data = await res.json();
+      el.textContent += `✅ Ruta encontrada: ${data?.ordered?.length} paradas\nOrigen: ${data?.origin?.name||'?'}\n`;
+      renderOptResult(data);
+      toast('✅ Ruta restaurada desde servidor');
+    } else {
+      const err = await res.json().catch(()=>({}));
+      el.textContent += `❌ No hay ruta: ${err.error||'sin datos'}\n`;
+      el.textContent += `\n¿Guardaste alguna ruta hoy?\nDebes calcular y aparecerá guardada.`;
+    }
+  } catch(e){
+    el.textContent += `❌ Error: ${e.message}`;
+  }
+}
+// ─────────────────────────────────────────────────────────────────────────
 let currentOptResult = null;
 let _drawGen = 0; // incrementa cada vez que se pide un nuevo dibujado
 
@@ -1690,24 +1719,40 @@ let _drawGen = 0; // incrementa cada vez que se pide un nuevo dibujado
 async function _saveOpt(){
   if(!currentOptResult) return;
   try {
-    await fetch('/api/opt-route', {
+    const body = {
+      date:   selectedDate,
+      driver: selectedOptDriver || '',
+      result: currentOptResult,
+    };
+    console.log('[OPT] Guardando en servidor:', body.date, body.driver, body.result?.ordered?.length, 'paradas');
+    const res = await fetch('/api/opt-route', {
       method: 'POST',
       headers: {'Content-Type':'application/json'},
-      body: JSON.stringify({
-        date:   selectedDate,
-        driver: selectedOptDriver || '',
-        result: currentOptResult,
-      })
+      body: JSON.stringify(body)
     });
-  } catch(e){ console.warn('No se pudo guardar ruta en servidor', e); }
+    const json = await res.json();
+    console.log('[OPT] Guardado OK:', json);
+    toast('💾 Ruta guardada en servidor');
+  } catch(e){ console.warn('[OPT] Error guardando ruta en servidor', e); toast('⚠️ Error al guardar ruta'); }
 }
 async function _loadOpt(){
   try {
     const driver = selectedOptDriver || '';
-    const res = await fetch(`/api/opt-route?date=${selectedDate}&driver=${encodeURIComponent(driver)}`);
-    if(!res.ok) return null;
-    return await res.json();
-  } catch(e){ return null; }
+    const url = `/api/opt-route?date=${selectedDate}&driver=${encodeURIComponent(driver)}`;
+    console.log('[OPT] Cargando desde servidor:', url);
+    const res = await fetch(url);
+    console.log('[OPT] Respuesta servidor status:', res.status);
+    if(!res.ok){
+      console.log('[OPT] No hay ruta guardada (404)');
+      return null;
+    }
+    const data = await res.json();
+    console.log('[OPT] Ruta cargada:', data?.ordered?.length, 'paradas');
+    return data;
+  } catch(e){
+    console.warn('[OPT] Error cargando ruta del servidor', e);
+    return null;
+  }
 }
 // ─────────────────────────────────────────────────────────────────────────
 
