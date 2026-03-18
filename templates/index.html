@@ -835,11 +835,6 @@ async function init(){
   loadCalSummary();
   selectDate(selectedDate);
   syncFormDate();
-  // ── Restaurar ruta optimizada desde servidor (espejo) ──
-  setTimeout(async () => {
-    const saved = await _loadOpt();
-    if(saved){ renderOptResult(saved); }
-  }, 500);
 }
 init();
 
@@ -2123,13 +2118,10 @@ function switchPanel(tab,el){
     // Limpiar TODO el mapa al entrar a optimizar
     clearRouteLines();
     Object.keys(markers).forEach(k=>{ map.removeLayer(markers[k]); delete markers[k]; });
-    // Restaurar si el panel está vacío (ej: primera vez que entra en esta sesión)
-    const optEl = document.getElementById('opt-result');
-    if(optEl && !optEl.innerHTML.trim()){
-      _loadOpt().then(saved => {
-        if(saved){ renderOptResult(saved); toast('📋 Ruta anterior restaurada'); }
-      });
-    }
+    // Siempre cargar la ruta guardada desde el servidor
+    _loadOpt().then(saved => {
+      if(saved){ renderOptResult(saved); }
+    });
   } else {
     // Al salir de optimizar: limpiar ruta y restaurar marcadores del día
     clearRouteLines();
