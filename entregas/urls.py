@@ -14,6 +14,8 @@ urlpatterns = [
     path('api/gps/update', views.gps_update, name='gps_update'),
     path('api/gps/status', views.gps_status, name='gps_status'),
     path('api/gps/clear',  views.gps_clear,  name='gps_clear'),
+    # Ruta optimizada guardada (espejo servidor)
+    path('api/opt-route', views.opt_route, name='opt_route'),
     # Stock / Carga del Día
     path('api/products',      views.products,      name='products'),
     path('api/stock',         views.stock,          name='stock'),

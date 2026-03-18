@@ -454,6 +454,71 @@ def gps_clear(request):
     return JsonResponse({"ok": True})
 
 # ═══════════════════════════════════════════════════════════════════════════════
+#  RUTA OPTIMIZADA GUARDADA (espejo en servidor)
+# ═══════════════════════════════════════════════════════════════════════════════
+
+@csrf_exempt
+@require_http_methods(["GET", "POST", "DELETE"])
+def opt_route(request):
+    """
+    GET  ?date=YYYY-MM-DD&driver=jorge   → devuelve la ruta guardada o 404
+    POST {date, driver, result}          → guarda/reemplaza la ruta optimizada
+    DELETE ?date=YYYY-MM-DD&driver=jorge → borra la ruta del día/conductor
+    """
+    from django.conf import settings as dj_settings
+    opt_file = dj_settings.OPT_ROUTE_FILE
+    all_routes = load_json(opt_file)
+
+    if request.method == "GET":
+        date   = request.GET.get("date", datetime.today().strftime("%Y-%m-%d"))
+        driver = request.GET.get("driver", "")
+        entry  = next(
+            (r for r in all_routes
+             if r.get("date") == date and r.get("driver", "") == driver),
+            None
+        )
+        if not entry:
+            return JsonResponse({"error": "No hay ruta guardada"}, status=404)
+        return JsonResponse(entry["result"], safe=False)
+
+    if request.method == "DELETE":
+        date   = request.GET.get("date", datetime.today().strftime("%Y-%m-%d"))
+        driver = request.GET.get("driver", "")
+        all_routes = [r for r in all_routes
+                      if not (r.get("date") == date and r.get("driver", "") == driver)]
+        save_json(opt_file, all_routes)
+        return JsonResponse({"ok": True})
+
+    # POST — guardar o actualizar
+    data   = json.loads(request.body)
+    date   = data.get("date", datetime.today().strftime("%Y-%m-%d"))
+    driver = data.get("driver", "")
+    result = data.get("result")
+
+    if not result:
+        return JsonResponse({"error": "result requerido"}, status=400)
+
+    existing = next(
+        (r for r in all_routes
+         if r.get("date") == date and r.get("driver", "") == driver),
+        None
+    )
+    if existing:
+        existing["result"]     = result
+        existing["updated_at"] = datetime.now().isoformat()
+    else:
+        all_routes.append({
+            "date":       date,
+            "driver":     driver,
+            "result":     result,
+            "created_at": datetime.now().isoformat(),
+            "updated_at": datetime.now().isoformat(),
+        })
+    save_json(opt_file, all_routes)
+    return JsonResponse({"ok": True})
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
 #  CATÁLOGO DE PRODUCTOS (SKUs fijos de arena de gato)
 # ═══════════════════════════════════════════════════════════════════════════════
 

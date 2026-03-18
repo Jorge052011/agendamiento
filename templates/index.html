@@ -835,6 +835,11 @@ async function init(){
   loadCalSummary();
   selectDate(selectedDate);
   syncFormDate();
+  // ── Restaurar ruta optimizada desde servidor (espejo) ──
+  setTimeout(async () => {
+    const saved = await _loadOpt();
+    if(saved){ renderOptResult(saved); }
+  }, 500);
 }
 init();
 
@@ -1675,7 +1680,7 @@ async function runOptimizer(){
 
   const result = await res.json();
   renderOptResult(result);
-  _saveOpt(); // ← persistir resultado nuevo
+  await _saveOpt(); // ← guardar en servidor
   // El usuario dibuja manualmente con "Ver ruta en mapa"
 }
 
@@ -1683,21 +1688,27 @@ async function runOptimizer(){
 let currentOptResult = null;
 let _drawGen = 0; // incrementa cada vez que se pide un nuevo dibujado
 
-// ── Persistencia del optimizador en localStorage ──────────────────────────
-function _optKey(){
-  // Clave única por fecha + conductor para no mezclar días ni repartidores
-  const d = selectedDate || 'nodate';
-  const v = selectedOptDriver || 'all';
-  return `rt-opt:${d}:${v}`;
-}
-function _saveOpt(){
+// ── Persistencia del optimizador en el SERVIDOR (espejo) ─────────────────
+async function _saveOpt(){
   if(!currentOptResult) return;
-  try { localStorage.setItem(_optKey(), JSON.stringify(currentOptResult)); } catch(e){}
-}
-function _loadOpt(){
   try {
-    const raw = localStorage.getItem(_optKey());
-    return raw ? JSON.parse(raw) : null;
+    await fetch('/api/opt-route', {
+      method: 'POST',
+      headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({
+        date:   selectedDate,
+        driver: selectedOptDriver || '',
+        result: currentOptResult,
+      })
+    });
+  } catch(e){ console.warn('No se pudo guardar ruta en servidor', e); }
+}
+async function _loadOpt(){
+  try {
+    const driver = selectedOptDriver || '';
+    const res = await fetch(`/api/opt-route?date=${selectedDate}&driver=${encodeURIComponent(driver)}`);
+    if(!res.ok) return null;
+    return await res.json();
   } catch(e){ return null; }
 }
 // ─────────────────────────────────────────────────────────────────────────
@@ -1795,7 +1806,7 @@ function renderOptResult(result){
 
         // Guardar nuevo orden — el usuario verá los cambios al presionar "Ver en mapa"
         currentOptResult = { ...currentOptResult, ordered: snapshot };
-        _saveOpt(); // ← persistir orden arrastrado
+        _saveOpt(); // ← guardar en servidor (fire-and-forget, no bloquea UI)
       }
     });
   }
@@ -2112,11 +2123,12 @@ function switchPanel(tab,el){
     // Limpiar TODO el mapa al entrar a optimizar
     clearRouteLines();
     Object.keys(markers).forEach(k=>{ map.removeLayer(markers[k]); delete markers[k]; });
-    // ── Siempre restaurar desde localStorage (sobrevive cierre de app) ──
-    const saved = _loadOpt();
-    if(saved){
-      renderOptResult(saved);
-      if(!currentOptResult) toast('📋 Ruta anterior restaurada');
+    // Restaurar si el panel está vacío (ej: primera vez que entra en esta sesión)
+    const optEl = document.getElementById('opt-result');
+    if(optEl && !optEl.innerHTML.trim()){
+      _loadOpt().then(saved => {
+        if(saved){ renderOptResult(saved); toast('📋 Ruta anterior restaurada'); }
+      });
     }
   } else {
     // Al salir de optimizar: limpiar ruta y restaurar marcadores del día
