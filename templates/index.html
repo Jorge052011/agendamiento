@@ -833,8 +833,11 @@ async function init(){
   await loadConfig();
   renderCalendar();
   loadCalSummary();
-  selectDate(selectedDate);
+  await selectDate(selectedDate); // esperar a que carguen las entregas del día
   syncFormDate();
+  // Cargar ruta optimizada guardada en servidor — ya tenemos selectedDate correcto
+  const saved = await _loadOpt();
+  if(saved){ renderOptResult(saved); }
 }
 init();
 
