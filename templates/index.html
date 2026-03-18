@@ -1047,7 +1047,8 @@ function applyMapNightMode(isLight){
 }
 
 function initMap(){
-  map=L.map('map',{center:[-36.82,-73.05],zoom:12});
+  // Abre centrado en Concepción+San Pedro — refreshMarkers ajustará al área real
+  map=L.map('map',{center:[-36.825,-73.080],zoom:13});
   const isLight=document.documentElement.classList.contains('light');
   getMapTileLayer(isLight).addTo(map);
   applyMapNightMode(isLight);
@@ -1110,7 +1111,12 @@ function refreshMarkers(){
   markers={};clearRouteLines();
   deliveries.forEach(d=>addMarker(d));
   const pts=deliveries.filter(d=>d.lat).map(d=>[d.lat,d.lng]);
-  if(pts.length)map.fitBounds(pts,{padding:[40,40]});
+  if(pts.length){
+    map.fitBounds(pts,{padding:[50,50],maxZoom:15});
+  } else {
+    // Sin puntos: mostrar área Concepción + San Pedro de la Paz completa
+    map.fitBounds([[-36.920,-73.180],[-36.730,-72.980]],{padding:[20,20]});
+  }
 }
 function clearRouteLines(){routeLines.forEach(l=>map.removeLayer(l));routeLines=[];}
 
@@ -2205,7 +2211,16 @@ function mobSwitch(tab,el){
   const panel=document.querySelector('.panel');
   if(tab==='map'){
     panel.style.display='none';mapCol.classList.add('mob-show');
-    setTimeout(()=>map.invalidateSize(),200);
+    setTimeout(()=>{
+      map.invalidateSize();
+      // Ajustar zoom a todos los puntos del día
+      const pts=deliveries.filter(d=>d.lat).map(d=>[d.lat,d.lng]);
+      if(pts.length){
+        map.fitBounds(pts,{padding:[50,50],maxZoom:15});
+      } else {
+        map.fitBounds([[-36.920,-73.180],[-36.730,-72.980]],{padding:[20,20]});
+      }
+    },250);
   } else {
     panel.style.display='';mapCol.classList.remove('mob-show');switchPanel(tab,null);
   }
