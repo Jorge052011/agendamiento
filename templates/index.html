@@ -836,11 +836,17 @@ async function init(){
   await loadConfig();
   renderCalendar();
   loadCalSummary();
-  await selectDate(selectedDate); // esperar a que carguen las entregas del día
+  await selectDate(selectedDate);
   syncFormDate();
-  // Cargar ruta optimizada guardada en servidor — ya tenemos selectedDate correcto
+  // Cargar ruta optimizada guardada en servidor
+  console.log('[INIT] selectedDate:', selectedDate, 'selectedOptDriver:', selectedOptDriver);
   const saved = await _loadOpt();
-  if(saved){ renderOptResult(saved); }
+  console.log('[INIT] saved:', saved ? `${saved.ordered?.length} paradas` : 'null');
+  if(saved){
+    renderOptResult(saved);
+    console.log('[INIT] renderOptResult ejecutado, opt-result innerHTML length:', document.getElementById('opt-result')?.innerHTML?.length);
+  }
+}
 }
 init();
 
@@ -1691,6 +1697,7 @@ async function runOptDiag(){
   el.style.display = 'block';
   el.textContent = '⏳ Consultando servidor...\n';
   el.textContent += `Fecha: ${selectedDate}\nConductor: "${selectedOptDriver || ''}"\n`;
+  el.textContent += `opt-result tiene contenido: ${document.getElementById('opt-result')?.innerHTML?.trim()?.length > 0 ? 'SÍ' : 'NO'}\n`;
   try {
     const driver = selectedOptDriver || '';
     const url = `/api/opt-route?date=${selectedDate}&driver=${encodeURIComponent(driver)}`;
@@ -1705,7 +1712,21 @@ async function runOptDiag(){
     } else {
       const err = await res.json().catch(()=>({}));
       el.textContent += `❌ No hay ruta: ${err.error||'sin datos'}\n`;
-      el.textContent += `\n¿Guardaste alguna ruta hoy?\nDebes calcular y aparecerá guardada.`;
+      // Intentar con todas las combinaciones de driver
+      el.textContent += `\nBuscando en otros conductores...\n`;
+      for(const drv of ['','jorge','diego','otro']){
+        if(drv === driver) continue;
+        const r2 = await fetch(`/api/opt-route?date=${selectedDate}&driver=${encodeURIComponent(drv)}`);
+        if(r2.ok){
+          const d2 = await r2.json();
+          el.textContent += `✅ Encontrada con conductor="${drv}": ${d2?.ordered?.length} paradas\n`;
+          renderOptResult(d2);
+          toast('✅ Ruta restaurada');
+          break;
+        } else {
+          el.textContent += `  conductor="${drv}": 404\n`;
+        }
+      }
     }
   } catch(e){
     el.textContent += `❌ Error: ${e.message}`;
