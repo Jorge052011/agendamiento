@@ -838,15 +838,9 @@ async function init(){
   loadCalSummary();
   await selectDate(selectedDate);
   syncFormDate();
-  // Cargar ruta optimizada guardada en servidor
-  console.log('[INIT] selectedDate:', selectedDate, 'selectedOptDriver:', selectedOptDriver);
-  const saved = await _loadOpt();
-  console.log('[INIT] saved:', saved ? `${saved.ordered?.length} paradas` : 'null');
-  if(saved){
-    renderOptResult(saved);
-    console.log('[INIT] renderOptResult ejecutado, opt-result innerHTML length:', document.getElementById('opt-result')?.innerHTML?.length);
-  }
-}
+  // Cargar ruta optimizada — buscar en todos los conductores
+  const saved = await _loadOptAny();
+  if(saved){ renderOptResult(saved); }
 }
 init();
 
@@ -1759,21 +1753,27 @@ async function _saveOpt(){
 async function _loadOpt(){
   try {
     const driver = selectedOptDriver || '';
-    const url = `/api/opt-route?date=${selectedDate}&driver=${encodeURIComponent(driver)}`;
-    console.log('[OPT] Cargando desde servidor:', url);
-    const res = await fetch(url);
-    console.log('[OPT] Respuesta servidor status:', res.status);
-    if(!res.ok){
-      console.log('[OPT] No hay ruta guardada (404)');
-      return null;
-    }
-    const data = await res.json();
-    console.log('[OPT] Ruta cargada:', data?.ordered?.length, 'paradas');
-    return data;
-  } catch(e){
-    console.warn('[OPT] Error cargando ruta del servidor', e);
-    return null;
+    const res = await fetch(`/api/opt-route?date=${selectedDate}&driver=${encodeURIComponent(driver)}`);
+    if(!res.ok) return null;
+    return await res.json();
+  } catch(e){ return null; }
+}
+// Busca en todos los conductores y retorna la primera ruta que encuentre
+async function _loadOptAny(){
+  const drivers = [selectedOptDriver||'', 'jorge', 'diego', 'otro', ''];
+  const seen = new Set();
+  for(const drv of drivers){
+    if(seen.has(drv)) continue;
+    seen.add(drv);
+    try {
+      const res = await fetch(`/api/opt-route?date=${selectedDate}&driver=${encodeURIComponent(drv)}`);
+      if(res.ok){
+        const data = await res.json();
+        if(data?.ordered?.length > 0) return data;
+      }
+    } catch(e){}
   }
+  return null;
 }
 // ─────────────────────────────────────────────────────────────────────────
 
@@ -2188,7 +2188,7 @@ function switchPanel(tab,el){
     clearRouteLines();
     Object.keys(markers).forEach(k=>{ map.removeLayer(markers[k]); delete markers[k]; });
     // Siempre cargar la ruta guardada desde el servidor
-    _loadOpt().then(saved => {
+    _loadOptAny().then(saved => {
       if(saved){ renderOptResult(saved); }
     });
   } else {

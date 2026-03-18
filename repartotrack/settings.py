@@ -63,3 +63,6 @@ CONFIG_FILE     = DATA_DIR / 'config.json'
 
 # Stock diario
 STOCK_FILE = DATA_DIR / 'stock.json'
+
+# Rutas optimizadas guardadas
+OPT_ROUTE_FILE = DATA_DIR / 'opt_routes.json'
