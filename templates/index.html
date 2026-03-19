@@ -355,7 +355,7 @@ textarea{resize:vertical;min-height:50px;}
 .mnb{flex:1;min-width:44px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1px;background:none;border:none;color:var(--mut);cursor:pointer;font-size:.52rem;font-family:'DM Sans',sans-serif;transition:color .18s;touch-action:manipulation;padding:0;}
 .mnb .ico{font-size:1.1rem;line-height:1;}
 .mnb.active{color:var(--acc);}
-@media(max-width:900px){.cal-col{display:none;}.map-col{display:none;}.map-col.mob-show{display:flex;}.desk-nav{display:none;}.mob-nav{display:flex;}.main{padding-bottom:var(--tab-h);}.panel{flex:1;max-width:100%;}#toast{bottom:calc(var(--tab-h) + max(8px,env(safe-area-inset-bottom,0px)));}}
+@media(max-width:900px){.cal-col{display:none;}#btn-mob-cal{display:block!important;}.map-col{display:none;}.map-col.mob-show{display:flex;}.desk-nav{display:none;}.mob-nav{display:flex;}.main{padding-bottom:var(--tab-h);}.panel{flex:1;max-width:100%;}#toast{bottom:calc(var(--tab-h) + max(8px,env(safe-area-inset-bottom,0px)));}}
 @media(max-width:600px){header{padding:0 .75rem;}.hdr-date{font-size:.7rem;padding:3px 8px;}.panel-hd{padding:.65rem .9rem .4rem;}.scrollable{padding:.65rem .9rem;}.filter-bar{padding:.35rem .9rem;}.form-row{grid-template-columns:1fr;}.dp-grid{grid-template-columns:1fr;}}
 
 /* ── CARGA DEL DÍA ── */
@@ -459,6 +459,19 @@ textarea{resize:vertical;min-height:50px;}
       <div class="panel-hd">
         <div class="panel-title">Pedidos del día</div>
         <span class="badge" id="list-count">0</span>
+        <button id="btn-mob-cal" onclick="toggleMobCal()" style="margin-left:auto;background:var(--surf2);border:1px solid var(--brd);border-radius:7px;padding:3px 10px;font-size:.72rem;color:var(--acc);font-weight:700;cursor:pointer;display:none;">📅 Cambiar fecha</button>
+      </div>
+      <!-- Panel calendario desplegable móvil -->
+      <div id="mob-cal-panel" style="display:none;padding:.6rem .9rem;border-bottom:1px solid var(--brd);background:var(--surf2);">
+        <div style="display:flex;align-items:center;gap:.5rem;margin-bottom:.5rem;">
+          <button class="ibtn" onclick="calPrev();renderMobCal();" style="font-size:1.1rem;">‹</button>
+          <div id="mob-cal-title" style="flex:1;text-align:center;font-weight:700;font-size:.85rem;"></div>
+          <button class="ibtn" onclick="calNext();renderMobCal();" style="font-size:1.1rem;">›</button>
+        </div>
+        <div style="display:grid;grid-template-columns:repeat(7,1fr);gap:2px;font-size:.65rem;font-weight:600;color:var(--mut);text-align:center;margin-bottom:3px;">
+          <div>L</div><div>M</div><div>X</div><div>J</div><div>V</div><div>S</div><div>D</div>
+        </div>
+        <div id="mob-cal-days" style="display:grid;grid-template-columns:repeat(7,1fr);gap:2px;"></div>
       </div>
       <div class="filter-bar">
         <div class="chip active" onclick="setFilter('all',this)">Todos</div>
@@ -538,7 +551,7 @@ textarea{resize:vertical;min-height:50px;}
             </div>
             <div class="field">
               <label>Cantidad</label>
-              <input id="f-amount" type="text" placeholder="Ej: 20k">
+              <input id="f-amount" type="text" placeholder="Ej: 1">
             </div>
           </div>
 
@@ -662,6 +675,29 @@ textarea{resize:vertical;min-height:50px;}
     </div>
 
     <!-- OPTIMIZADOR -->
+    <div id="page-calendar-mob" class="page">
+      <div style="padding:.75rem .5rem 0;">
+        <div style="font-size:.78rem;font-weight:700;color:var(--mut);text-transform:uppercase;letter-spacing:.05em;margin-bottom:.5rem;">📅 Seleccionar fecha</div>
+        <div style="display:flex;align-items:center;gap:.5rem;margin-bottom:.75rem;">
+          <button class="ibtn" onclick="calPrev()" style="font-size:1.1rem;">‹</button>
+          <div id="mob-cal-title" style="flex:1;text-align:center;font-weight:700;font-size:.9rem;"></div>
+          <button class="ibtn" onclick="calNext()" style="font-size:1.1rem;">›</button>
+        </div>
+        <div id="mob-cal-grid" style="display:grid;grid-template-columns:repeat(7,1fr);gap:3px;font-size:.72rem;text-align:center;">
+          <div style="color:var(--mut);font-weight:600;">L</div>
+          <div style="color:var(--mut);font-weight:600;">M</div>
+          <div style="color:var(--mut);font-weight:600;">X</div>
+          <div style="color:var(--mut);font-weight:600;">J</div>
+          <div style="color:var(--mut);font-weight:600;">V</div>
+          <div style="color:var(--mut);font-weight:600;">S</div>
+          <div style="color:var(--mut);font-weight:600;">D</div>
+        </div>
+        <div id="mob-cal-days" style="display:grid;grid-template-columns:repeat(7,1fr);gap:3px;margin-top:3px;"></div>
+        <div style="margin-top:.75rem;padding:.5rem;background:var(--surf2);border-radius:8px;font-size:.78rem;">
+          Fecha seleccionada: <span id="mob-cal-selected" style="font-weight:700;color:var(--acc);"></span>
+        </div>
+      </div>
+    </div>
     <div id="page-optimizer" class="page">
       <div class="panel-hd"><div class="panel-title">⚡ Optimizar Ruta</div></div>
       <div class="scrollable">
@@ -1786,52 +1822,50 @@ async function _saveOpt(){
   } catch(e){ console.warn('[OPT] Error guardando ruta en servidor', e); toast('⚠️ Error al guardar ruta'); }
 }
 async function _appendToOpt(newDelivery){
-  // Si hay una ruta guardada, agrega el nuevo pedido al FINAL sin tocar el orden existente.
-  // Si no hay ruta guardada, no hace nada (el usuario optimizará cuando quiera).
+  // Agrega el nuevo pedido al FINAL de TODAS las rutas guardadas del día,
+  // sin importar el conductor. Así aparece siempre en Optimizar.
   try {
-    const driver = (newDelivery.driver || '').toLowerCase().trim();
-    const date   = newDelivery.delivery_date || selectedDate;
+    const date = newDelivery.delivery_date || selectedDate;
+    const allDrivers = ['', 'jorge', 'diego', 'otro'];
+    let appendedToAny = false;
 
-    // Buscar ruta existente para ese conductor
-    let savedResult = null;
-    for(const drv of [driver, '']){
+    for(const drv of allDrivers){
       const r = await fetch(`/api/opt-route?date=${date}&driver=${encodeURIComponent(drv)}&_=${Date.now()}`);
-      if(r.ok){
-        const d = await r.json();
-        if(d?.ordered?.length > 0){ savedResult = d; break; }
+      if(!r.ok) continue;
+      const savedResult = await r.json();
+      if(!savedResult?.ordered?.length) continue;
+
+      // Verificar que el pedido no esté ya en esta ruta
+      const alreadyIn = savedResult.ordered.some(s => s.id === newDelivery.id);
+      if(alreadyIn) continue;
+
+      // Agregar al final
+      const newStop = {
+        ...newDelivery,
+        route_ref: newDelivery.place_id || newDelivery.formatted_address || newDelivery.address || '',
+        _new: true,
+      };
+      savedResult.ordered.push(newStop);
+      savedResult.stops = savedResult.ordered.length;
+
+      // Guardar en servidor con el mismo conductor que tenía
+      await fetch('/api/opt-route', {
+        method: 'POST',
+        headers: {'Content-Type':'application/json'},
+        body: JSON.stringify({ date, driver: drv, result: savedResult })
+      });
+      appendedToAny = true;
+
+      // Si este es el que está en pantalla ahora, actualizar la vista
+      if(currentOptResult){
+        currentOptResult = savedResult;
+        renderOptResult(savedResult);
       }
     }
 
-    if(!savedResult) return; // No hay ruta guardada aun
-
-    // Verificar que el pedido no esté ya en la ruta
-    const alreadyIn = savedResult.ordered.some(s => s.id === newDelivery.id);
-    if(alreadyIn) return;
-
-    // Construir el stop igual que el optimizador
-    const newStop = {
-      ...newDelivery,
-      route_ref: newDelivery.place_id || newDelivery.formatted_address || newDelivery.address || '',
-      _new: true,
-    };
-
-    savedResult.ordered.push(newStop);
-    savedResult.stops = savedResult.ordered.length;
-
-    // Guardar en servidor
-    await fetch('/api/opt-route', {
-      method: 'POST',
-      headers: {'Content-Type':'application/json'},
-      body: JSON.stringify({ date, driver, result: savedResult })
-    });
-
-    // Si el panel optimizador está abierto, actualizar la vista en tiempo real
-    if(currentOptResult){
-      currentOptResult = savedResult;
-      renderOptResult(savedResult);
+    if(appendedToAny){
       toast('📍 Pedido agregado al final de la ruta — arrástralo donde quieras');
     }
-    // El toast principal de "Entrega agregada" ya lo muestra addDelivery()
   } catch(e){
     console.warn('[OPT] Error al agregar pedido a ruta:', e);
   }
@@ -2275,7 +2309,26 @@ function switchPanel(tab,el){
     Object.keys(markers).forEach(k=>{ map.removeLayer(markers[k]); delete markers[k]; });
     // Siempre cargar la ruta guardada desde el servidor
     _loadOptAny().then(saved => {
-      if(saved){ renderOptResult(saved); }
+      if(saved){
+        renderOptResult(saved);
+        // Detectar si hay pedidos del día que no están en la ruta
+        const savedIds = new Set(saved.ordered.map(s => s.id));
+        const missing = deliveries.filter(d =>
+          d.delivery_date === selectedDate &&
+          !d.completed &&
+          !savedIds.has(d.id) &&
+          (!selectedOptDriver || d.driver === selectedOptDriver)
+        );
+        if(missing.length > 0){
+          const warn = document.createElement('div');
+          warn.style.cssText = 'background:#f59e0b22;border:1px solid #f59e0b;border-radius:7px;padding:.5rem .75rem;margin-bottom:.5rem;font-size:.75rem;color:#f59e0b;font-weight:600;';
+          warn.innerHTML = `⚠️ Hay ${missing.length} pedido(s) nuevo(s) no incluidos en la ruta: ${missing.map(d=>d.name).join(', ')}. Se agregarán al final automáticamente.`;
+          const optResult = document.getElementById('opt-result');
+          if(optResult) optResult.prepend(warn);
+          // Agregarlos automáticamente al final
+          missing.forEach(d => _appendToOpt(d));
+        }
+      }
     });
   } else {
     // Al salir de optimizar: limpiar ruta y restaurar marcadores del día
@@ -2309,6 +2362,48 @@ function mobSwitch(tab,el){
   if(tab==='clients')loadClients();
   if(tab==='carga'){ initCarga(); }
   if(tab==='routes')startTrackingMonitor();
+  if(tab==='calendar-mob') renderMobCal();
+}
+
+function toggleMobCal(){
+  const panel = document.getElementById('mob-cal-panel');
+  const isOpen = panel.style.display !== 'none';
+  panel.style.display = isOpen ? 'none' : 'block';
+  if(!isOpen) renderMobCal();
+}
+
+function renderMobCal(){
+  const M=['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
+  const titleEl = document.getElementById('mob-cal-title');
+  if(titleEl) titleEl.textContent = M[calMonth] + ' ' + calYear;
+  const c = document.getElementById('mob-cal-days');
+  if(!c) return;
+  c.innerHTML = '';
+  const first = new Date(calYear, calMonth, 1).getDay();
+  const off = (first === 0) ? 6 : first - 1;
+  const dim = new Date(calYear, calMonth + 1, 0).getDate();
+  const today = todayStr();
+  for(let i = 0; i < off; i++){
+    const e = document.createElement('div'); c.appendChild(e);
+  }
+  for(let d = 1; d <= dim; d++){
+    const ds = `${calYear}-${String(calMonth+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+    const info = calSummary[ds];
+    const el = document.createElement('div');
+    const isSel = ds === selectedDate;
+    const isToday = ds === today;
+    el.style.cssText = `cursor:pointer;text-align:center;padding:5px 2px;border-radius:6px;font-size:.72rem;border:1px solid ${isSel?'var(--acc)':isToday?'var(--mut)':'transparent'};background:${isSel?'rgba(240,224,64,.15)':'transparent'};color:${isSel?'var(--acc)':'var(--txt)'};font-weight:${isSel||isToday?'700':'400'};`;
+    el.innerHTML = `<div>${d}</div>${info&&info.total>0?`<div style="font-size:.55rem;color:var(--acc);font-weight:700;">${info.total}📦</div>`:''}`;
+    el.onclick = () => {
+      selectDate(ds);
+      renderMobCal(); // refrescar selección
+      // Cerrar calendario tras elegir fecha
+      setTimeout(()=>{
+        document.getElementById('mob-cal-panel').style.display = 'none';
+      }, 250);
+    };
+    c.appendChild(el);
+  }
 }
 
 // ════════════════════════════════════════════════════════
