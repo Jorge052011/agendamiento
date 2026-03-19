@@ -286,8 +286,10 @@ textarea{resize:vertical;min-height:50px;}
 .opt-sname{font-size:.78rem;font-weight:600;}
 .opt-saddr{font-size:.66rem;color:var(--mut);}
 .opt-sref{font-size:.63rem;color:var(--mut);margin-top:2px;}
+.opt-new-badge{display:inline-block;font-size:.58rem;font-weight:700;background:#f59e0b;color:#fff;border-radius:4px;padding:1px 5px;margin-left:4px;vertical-align:middle;letter-spacing:.03em;}
 .opt-order{display:flex;flex-wrap:wrap;gap:4px;margin-top:4px;}
 .opt-order-chip{font-size:.62rem;font-weight:600;padding:2px 7px;border-radius:5px;white-space:nowrap;}
+.sinfo-chips{display:flex;flex-wrap:wrap;gap:4px;margin:4px 0 2px;}
 .opt-order-chip.product{background:rgba(240,224,64,.12);color:var(--acc);}
 .opt-order-chip.amount{background:rgba(64,240,144,.12);color:var(--grn);}
 .opt-order-chip.payment{background:rgba(64,200,240,.12);color:var(--acc2);}
@@ -1163,7 +1165,7 @@ async function selectDate(ds){
   selectedDate=ds;syncFormDate();
   document.getElementById('hdr-date').textContent=(ds===todayStr()?'Hoy · ':'')+fmtDate(ds);
   renderCalendar();
-  const r=await fetch(`/api/deliveries?date=${ds}`);
+  const r=await fetch(`/api/deliveries?date=${ds}&_=${Date.now()}`);
   deliveries=await r.json();
   renderAll();refreshMarkers();
 }
@@ -1232,94 +1234,113 @@ async function addDelivery(){
   const btn=document.getElementById('btn-add');
   btn.textContent='⏳ Guardando...';btn.disabled=true;
 
-  let clientData={};
+  try {
+    let clientData={};
 
-  if(currentClient){
-    // Cliente existente — usar sus datos guardados
-    clientData={
-      phone:             currentClient.phone,
-      name:              currentClient.name,
-      address:           currentClient.formatted_address||currentClient.address,
-      formatted_address: currentClient.formatted_address||currentClient.address,
-      lat:               currentClient.lat,
-      lng:               currentClient.lng,
-      reference:         currentClient.reference||'',
-    };
-  } else {
-    // Cliente nuevo
-    const name=v('f-name');
-    const addressInput=v('f-address');
-    const reference=v('f-reference');
-
-    if(!name||!addressInput){
-      toast('⚠️ Nombre y dirección requeridos');
-      btn.textContent='+ AGREGAR ENTREGA';btn.disabled=false;return;
-    }
-
-    let lat=null,lng=null,formatted_address=addressInput,place_id='',verified=false,geocode_source='manual';
-
-    if(pendingAddressData){
-      // Dirección seleccionada desde Google Autocomplete
-      lat=pendingAddressData.lat;
-      lng=pendingAddressData.lng;
-      formatted_address=pendingAddressData.formatted_address;
-      place_id=pendingAddressData.place_id;
-      verified=true;
-      geocode_source='google';
+    if(currentClient){
+      // Cliente existente — usar sus datos guardados
+      clientData={
+        phone:             currentClient.phone,
+        name:              currentClient.name,
+        address:           currentClient.formatted_address||currentClient.address,
+        formatted_address: currentClient.formatted_address||currentClient.address,
+        lat:               currentClient.lat,
+        lng:               currentClient.lng,
+        reference:         currentClient.reference||'',
+      };
     } else {
-      toast('⚠️ Selecciona la dirección desde las sugerencias de Google Maps');
-      btn.textContent='+ AGREGAR ENTREGA';btn.disabled=false;return;
+      // Cliente nuevo
+      const name=v('f-name');
+      const addressInput=v('f-address');
+      const reference=v('f-reference');
+
+      if(!name||!addressInput){
+        toast('⚠️ Nombre y dirección requeridos');
+        return;
+      }
+
+      let lat=null,lng=null,formatted_address=addressInput,place_id='',verified=false,geocode_source='manual';
+
+      if(pendingAddressData){
+        // Dirección seleccionada desde Google Autocomplete
+        lat=pendingAddressData.lat;
+        lng=pendingAddressData.lng;
+        formatted_address=pendingAddressData.formatted_address;
+        place_id=pendingAddressData.place_id;
+        verified=true;
+        geocode_source='google';
+      } else {
+        toast('⚠️ Selecciona la dirección desde las sugerencias de Google Maps');
+        return;
+      }
+
+      // Guardar cliente
+      const clientRes = await fetch('/api/clients',{
+        method:'POST',headers:{'Content-Type':'application/json'},
+        body:JSON.stringify({phone,name,address_input:addressInput,address:formatted_address,formatted_address,place_id,reference,lat,lng,verified,geocode_source})
+      });
+      if(!clientRes.ok){
+        const ce = await clientRes.json().catch(()=>({}));
+        throw new Error('Error guardando cliente: '+(ce.error||clientRes.status));
+      }
+
+      clientData={phone,name,address:formatted_address,formatted_address,lat,lng,reference};
     }
 
-    // Guardar cliente
-    await fetch('/api/clients',{
+    const res=await fetch('/api/deliveries',{
       method:'POST',headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({phone,name,address_input:addressInput,address:formatted_address,formatted_address,place_id,reference,lat,lng,verified,geocode_source})
+      body:JSON.stringify({
+        delivery_date:date,
+        phone:clientData.phone||phone,
+        name:clientData.name,
+        address:clientData.formatted_address||clientData.address,
+        formatted_address:clientData.formatted_address||clientData.address,
+        reference:clientData.reference||'',
+        product,amount,payment,driver,
+        time_start:ts,time_end:te,notes,
+        lat:clientData.lat,lng:clientData.lng,
+        stock_items:{
+          'LAV-8':    parseInt(document.getElementById('si-LAV-8').value)||0,
+          'LAV-20':   parseInt(document.getElementById('si-LAV-20').value)||0,
+          'LAV-CA-8': parseInt(document.getElementById('si-LAV-CA-8').value)||0,
+          'LAV-CA-20':parseInt(document.getElementById('si-LAV-CA-20').value)||0,
+          'CA-TB-20': parseInt(document.getElementById('si-CA-TB-20').value)||0,
+        }
+      })
     });
 
-    clientData={phone,name,address:formatted_address,formatted_address,lat,lng,reference};
+    if(res.ok){
+      const nd=await res.json();
+      if(date===selectedDate){deliveries.push(nd);refreshMarkers();}
+      const[y,m]=date.split('-').map(Number);
+      if(y===calYear&&m===calMonth+1)await loadCalSummary();
+      renderAll();
+      // Agregar el nuevo pedido al final de la ruta guardada (sin re-optimizar)
+      await _appendToOpt(nd);
+      ['f-phone','f-name','f-address','f-reference','f-amount','f-notes'].forEach(id=>document.getElementById(id).value='');
+      ['f-product','f-payment','f-driver'].forEach(id=>document.getElementById(id).value='');
+      ['si-LAV-8','si-LAV-20','si-LAV-CA-8','si-LAV-CA-20','si-CA-TB-20'].forEach(id=>{ const el=document.getElementById(id); if(el)el.value='0'; });
+      hideClientBoxes();currentClient=null;pendingAddressData=null;
+      const addrHint=document.getElementById('addr-hint');
+      if(addrHint){addrHint.textContent='Selecciona una sugerencia de Google Maps';addrHint.style.color='';}
+      document.getElementById('addr-status').textContent='';
+      toast('✅ Entrega agregada · '+fmtDate(date));
+    } else {
+      let errorMsg = 'Error al guardar (HTTP '+res.status+')';
+      try {
+        const e = await res.json();
+        errorMsg = e.error || errorMsg;
+      } catch(_){}
+      console.error('[addDelivery] Error servidor:', res.status, errorMsg);
+      toast('❌ '+errorMsg);
+    }
+  } catch(err){
+    console.error('[addDelivery] Excepción:', err);
+    toast('❌ Error: '+err.message);
+  } finally {
+    // SIEMPRE restaurar el botón, pase lo que pase
+    btn.textContent='+ AGREGAR ENTREGA';btn.disabled=false;
   }
-
-  const res=await fetch('/api/deliveries',{
-    method:'POST',headers:{'Content-Type':'application/json'},
-    body:JSON.stringify({
-      delivery_date:date,
-      phone:clientData.phone||phone,
-      name:clientData.name,
-      address:clientData.formatted_address||clientData.address,
-      formatted_address:clientData.formatted_address||clientData.address,
-      reference:clientData.reference||'',
-      product,amount,payment,driver,
-      time_start:ts,time_end:te,notes,
-      lat:clientData.lat,lng:clientData.lng,
-      stock_items:{
-        'LAV-8':    parseInt(document.getElementById('si-LAV-8').value)||0,
-        'LAV-20':   parseInt(document.getElementById('si-LAV-20').value)||0,
-        'LAV-CA-8': parseInt(document.getElementById('si-LAV-CA-8').value)||0,
-        'LAV-CA-20':parseInt(document.getElementById('si-LAV-CA-20').value)||0,
-        'CA-TB-20': parseInt(document.getElementById('si-CA-TB-20').value)||0,
-      }
-    })
-  });
-
-  if(res.ok){
-    const nd=await res.json();
-    if(date===selectedDate){deliveries.push(nd);refreshMarkers();}
-    const[y,m]=date.split('-').map(Number);
-    if(y===calYear&&m===calMonth+1)await loadCalSummary();
-    renderAll();
-    ['f-phone','f-name','f-address','f-reference','f-amount','f-notes'].forEach(id=>document.getElementById(id).value='');
-    ['f-product','f-payment','f-driver'].forEach(id=>document.getElementById(id).value='');
-    ['si-LAV-8','si-LAV-20','si-LAV-CA-8','si-LAV-CA-20','si-CA-TB-20'].forEach(id=>{ const el=document.getElementById(id); if(el)el.value='0'; });
-    hideClientBoxes();currentClient=null;pendingAddressData=null;
-    const addrHint=document.getElementById('addr-hint');
-    if(addrHint){addrHint.textContent='Selecciona una sugerencia de Google Maps';addrHint.style.color='';}
-    document.getElementById('addr-status').textContent='';
-    toast('✅ Entrega agregada · '+fmtDate(date));
-  }else{
-    const e=await res.json();toast('❌ '+e.error);
-  }
-  btn.textContent='+ AGREGAR ENTREGA';btn.disabled=false;
 }
 
 // ════════════════════════════════════════════════════════
@@ -1533,6 +1554,10 @@ function renderRoutes(){
           <div class="saddr">${d.address}</div>
           ${ref?`<div class="sref">🔖 ${ref}</div>`:''}
           ${d.client_phone?`<div class="saddr">📞 ${d.client_phone}</div>`:''}
+          ${(d.product||d.amount||d.payment)?`<div class="sinfo-chips">
+            ${(d.product||d.amount)?`<span class="opt-order-chip amount">📦 ${[d.product,d.amount].filter(Boolean).join(' × ')}</span>`:''}
+            ${d.payment?`<span class="opt-order-chip payment">💳 ${d.payment}</span>`:''}
+          </div>`:''}
           <div class="stime">⏰ ${d.time_start} – ${d.time_end}</div>
           <div class="stimes">
             <input type="time" value="${d.departed_at||''}" onchange="patchDelivery('${d.id}',{departed_at:this.value})" title="Salida">
@@ -1700,7 +1725,7 @@ async function runOptDiag(){
   el.textContent += `opt-result tiene contenido: ${document.getElementById('opt-result')?.innerHTML?.trim()?.length > 0 ? 'SÍ' : 'NO'}\n`;
   try {
     const driver = selectedOptDriver || '';
-    const url = `/api/opt-route?date=${selectedDate}&driver=${encodeURIComponent(driver)}`;
+    const url = `/api/opt-route?date=${selectedDate}&driver=${encodeURIComponent(driver)}&_=${Date.now()}`;
     el.textContent += `URL: ${url}\n`;
     const res = await fetch(url);
     el.textContent += `Status: ${res.status}\n`;
@@ -1716,7 +1741,7 @@ async function runOptDiag(){
       el.textContent += `\nBuscando en otros conductores...\n`;
       for(const drv of ['','jorge','diego','otro']){
         if(drv === driver) continue;
-        const r2 = await fetch(`/api/opt-route?date=${selectedDate}&driver=${encodeURIComponent(drv)}`);
+        const r2 = await fetch(`/api/opt-route?date=${selectedDate}&driver=${encodeURIComponent(drv)}&_=${Date.now()}`);
         if(r2.ok){
           const d2 = await r2.json();
           el.textContent += `✅ Encontrada con conductor="${drv}": ${d2?.ordered?.length} paradas\n`;
@@ -1753,13 +1778,68 @@ async function _saveOpt(){
     });
     const json = await res.json();
     console.log('[OPT] Guardado OK:', json);
+    // Limpiar flag _new una vez que se guardó
+    if(currentOptResult?.ordered){
+      currentOptResult.ordered.forEach(s => { delete s._new; });
+    }
     toast('💾 Ruta guardada en servidor');
   } catch(e){ console.warn('[OPT] Error guardando ruta en servidor', e); toast('⚠️ Error al guardar ruta'); }
+}
+async function _appendToOpt(newDelivery){
+  // Si hay una ruta guardada, agrega el nuevo pedido al FINAL sin tocar el orden existente.
+  // Si no hay ruta guardada, no hace nada (el usuario optimizará cuando quiera).
+  try {
+    const driver = (newDelivery.driver || '').toLowerCase().trim();
+    const date   = newDelivery.delivery_date || selectedDate;
+
+    // Buscar ruta existente para ese conductor
+    let savedResult = null;
+    for(const drv of [driver, '']){
+      const r = await fetch(`/api/opt-route?date=${date}&driver=${encodeURIComponent(drv)}&_=${Date.now()}`);
+      if(r.ok){
+        const d = await r.json();
+        if(d?.ordered?.length > 0){ savedResult = d; break; }
+      }
+    }
+
+    if(!savedResult) return; // No hay ruta guardada aun
+
+    // Verificar que el pedido no esté ya en la ruta
+    const alreadyIn = savedResult.ordered.some(s => s.id === newDelivery.id);
+    if(alreadyIn) return;
+
+    // Construir el stop igual que el optimizador
+    const newStop = {
+      ...newDelivery,
+      route_ref: newDelivery.place_id || newDelivery.formatted_address || newDelivery.address || '',
+      _new: true,
+    };
+
+    savedResult.ordered.push(newStop);
+    savedResult.stops = savedResult.ordered.length;
+
+    // Guardar en servidor
+    await fetch('/api/opt-route', {
+      method: 'POST',
+      headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({ date, driver, result: savedResult })
+    });
+
+    // Si el panel optimizador está abierto, actualizar la vista en tiempo real
+    if(currentOptResult){
+      currentOptResult = savedResult;
+      renderOptResult(savedResult);
+      toast('📍 Pedido agregado al final de la ruta — arrástralo donde quieras');
+    }
+    // El toast principal de "Entrega agregada" ya lo muestra addDelivery()
+  } catch(e){
+    console.warn('[OPT] Error al agregar pedido a ruta:', e);
+  }
 }
 async function _loadOpt(){
   try {
     const driver = selectedOptDriver || '';
-    const res = await fetch(`/api/opt-route?date=${selectedDate}&driver=${encodeURIComponent(driver)}`);
+    const res = await fetch(`/api/opt-route?date=${selectedDate}&driver=${encodeURIComponent(driver)}&_=${Date.now()}`);
     if(!res.ok) return null;
     return await res.json();
   } catch(e){ return null; }
@@ -1772,7 +1852,7 @@ async function _loadOptAny(){
     if(seen.has(drv)) continue;
     seen.add(drv);
     try {
-      const res = await fetch(`/api/opt-route?date=${selectedDate}&driver=${encodeURIComponent(drv)}`);
+      const res = await fetch(`/api/opt-route?date=${selectedDate}&driver=${encodeURIComponent(drv)}&_=${Date.now()}`);
       if(res.ok){
         const data = await res.json();
         if(data?.ordered?.length > 0) return data;
@@ -1810,7 +1890,7 @@ function renderOptResult(result){
       <div class="opt-drag-handle" title="Arrastra para reordenar">⠿</div>
       <div class="opt-snum">${i + 1}</div>
       <div class="opt-sbody">
-        <div class="opt-sname">${s.name || 'Parada'}</div>
+        <div class="opt-sname">${s.name || 'Parada'}${s._new ? '<span class="opt-new-badge">NUEVO</span>' : ''}</div>
         <div class="opt-saddr">${s.formatted_address || s.address || ''}</div>
         ${s.reference ? `<div class="opt-sref">🔖 ${s.reference}</div>` : ''}
         ${chips ? `<div class="opt-order">${chips}</div>` : ''}

@@ -15,6 +15,14 @@ from .utils import (
 )
 
 
+def no_cache(response):
+    """Evita caché en navegadores móviles."""
+    response['Cache-Control'] = 'no-store, no-cache, must-revalidate, max-age=0'
+    response['Pragma']        = 'no-cache'
+    response['Expires']       = '0'
+    return response
+
+
 # ═══════════════════════════════════════════════════════════════════════════════
 #  PÁGINA PRINCIPAL
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -37,9 +45,9 @@ def clients(request):
             norm = normalize_phone(phone)
             match = next((c for c in all_clients if c["phone"] == norm), None)
             if match:
-                return JsonResponse(match)
+                return no_cache(JsonResponse(match))
             return JsonResponse(None, safe=False, status=404)
-        return JsonResponse(all_clients, safe=False)
+        return no_cache(JsonResponse(all_clients, safe=False))
 
     # POST — crear o actualizar
     data = json.loads(request.body)
@@ -129,7 +137,7 @@ def deliveries(request):
             if not d.get("address"):
                 d["address"] = cl.get("formatted_address") or cl.get("address", "")
 
-        return JsonResponse(all_deliveries, safe=False)
+        return no_cache(JsonResponse(all_deliveries, safe=False))
 
     # POST
     data           = json.loads(request.body)
@@ -368,13 +376,13 @@ def optimize(request):
     if waypoints_str:
         maps_url += f"&waypoints={urllib.parse.quote(waypoints_str)}"
 
-    return JsonResponse({
+    return no_cache(JsonResponse({
         "origin":   origin,
         "ordered":  ordered,
         "stops":    len(ordered),
         "total_km": total_km,
         "maps_url": maps_url,
-    })
+    }))
 
 # ═══════════════════════════════════════════════════════════════════════════════
 #  CONFIG
@@ -479,7 +487,7 @@ def opt_route(request):
         )
         if not entry:
             return JsonResponse({"error": "No hay ruta guardada"}, status=404)
-        return JsonResponse(entry["result"], safe=False)
+        return no_cache(JsonResponse(entry["result"], safe=False))
 
     if request.method == "DELETE":
         date   = request.GET.get("date", datetime.today().strftime("%Y-%m-%d"))
