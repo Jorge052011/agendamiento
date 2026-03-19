@@ -286,6 +286,12 @@ textarea{resize:vertical;min-height:50px;}
 .opt-sname{font-size:.78rem;font-weight:600;}
 .opt-saddr{font-size:.66rem;color:var(--mut);}
 .opt-sref{font-size:.63rem;color:var(--mut);margin-top:2px;}
+.opt-eta{font-size:.65rem;font-weight:700;color:var(--acc2);background:rgba(64,200,240,.12);border-radius:4px;padding:1px 6px;display:inline-block;margin-top:2px;}
+.opt-eta-orig{font-size:.65rem;font-weight:700;color:var(--grn);background:rgba(64,240,144,.12);border-radius:4px;padding:1px 6px;display:inline-block;margin-top:2px;}
+.seta{font-size:.65rem;font-weight:700;color:var(--acc2);margin-bottom:1px;}
+.opt-eta-summary{background:var(--surf3);border:1px solid var(--brd);border-radius:7px;padding:.4rem .7rem;margin:.4rem 0;font-size:.7rem;display:flex;gap:.75rem;flex-wrap:wrap;}
+.opt-eta-summary span{color:var(--mut);}
+.opt-eta-summary b{color:var(--txt);}
 .opt-new-badge{display:inline-block;font-size:.58rem;font-weight:700;background:#f59e0b;color:#fff;border-radius:4px;padding:1px 5px;margin-left:4px;vertical-align:middle;letter-spacing:.03em;}
 .opt-order{display:flex;flex-wrap:wrap;gap:4px;margin-top:4px;}
 .opt-order-chip{font-size:.62rem;font-weight:600;padding:2px 7px;border-radius:5px;white-space:nowrap;}
@@ -732,6 +738,30 @@ textarea{resize:vertical;min-height:50px;}
           </div>
         </div>
         <div class="divider"></div>
+        <!-- Configuración ETA -->
+        <div style="background:var(--surf2);border:1px solid var(--brd);border-radius:9px;padding:.65rem .8rem;margin-bottom:.5rem;">
+          <div style="font-size:.7rem;font-weight:700;color:var(--mut);text-transform:uppercase;letter-spacing:.05em;margin-bottom:.5rem;">⏱ Parámetros de tiempo</div>
+          <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:.5rem;">
+            <div>
+              <label style="font-size:.65rem;color:var(--mut);display:block;margin-bottom:2px;">🕐 Hora salida</label>
+              <input type="time" id="eta-start" value="09:00"
+                style="width:100%;background:var(--surf3);border:1px solid var(--brd2);border-radius:5px;color:var(--txt);font-size:.78rem;padding:4px 5px;"
+                onchange="ETA_START_TIME=this.value; if(currentOptResult) renderOptResult(currentOptResult);">
+            </div>
+            <div>
+              <label style="font-size:.65rem;color:var(--mut);display:block;margin-bottom:2px;">🚗 km/h ciudad</label>
+              <input type="number" id="eta-speed" value="30" min="10" max="80"
+                style="width:100%;background:var(--surf3);border:1px solid var(--brd2);border-radius:5px;color:var(--txt);font-size:.78rem;padding:4px 5px;"
+                onchange="ETA_SPEED_KMH=parseInt(this.value)||30; if(currentOptResult) renderOptResult(currentOptResult);">
+            </div>
+            <div>
+              <label style="font-size:.65rem;color:var(--mut);display:block;margin-bottom:2px;">⏳ Min/cliente</label>
+              <input type="number" id="eta-service" value="10" min="1" max="60"
+                style="width:100%;background:var(--surf3);border:1px solid var(--brd2);border-radius:5px;color:var(--txt);font-size:.78rem;padding:4px 5px;"
+                onchange="ETA_SERVICE_MIN=parseInt(this.value)||10; if(currentOptResult) renderOptResult(currentOptResult);">
+            </div>
+          </div>
+        </div>
         <button class="btn-primary" id="btn-optimize" onclick="runOptimizer()">⚡ CALCULAR RUTA ÓPTIMA</button>
         <div id="opt-result"></div>
       </div>
@@ -834,14 +864,14 @@ textarea{resize:vertical;min-height:50px;}
 
 <nav class="mob-nav">
   <div class="mob-nav-inner">
-    <button class="mnb active" onclick="mobSwitch('list',this)"><span class="ico">📋</span>Pedidos</button>
-    <button class="mnb"        onclick="mobSwitch('form',this)"><span class="ico">➕</span>Nuevo</button>
-    <button class="mnb"        onclick="mobSwitch('map',this)"><span class="ico">🗺️</span>Mapa</button>
-    <button class="mnb"        onclick="mobSwitch('routes',this)"><span class="ico">📍</span>Rutas</button>
-    <button class="mnb"        onclick="mobSwitch('optimizer',this)"><span class="ico">⚡</span>Ruta opt.</button>
-    <button class="mnb"        onclick="mobSwitch('carga',this)"><span class="ico">📦</span>Carga</button>
-    <button class="mnb"        onclick="mobSwitch('clients',this)"><span class="ico">👥</span>Clientes</button>
-    <button class="mnb"        onclick="mobSwitch('settings',this)"><span class="ico">⚙️</span>Config</button>
+    <button class="mnb active" data-tab="list"      onclick="mobSwitch('list',this)"><span class="ico">📋</span>Pedidos</button>
+    <button class="mnb"        data-tab="form"      onclick="mobSwitch('form',this)"><span class="ico">➕</span>Nuevo</button>
+    <button class="mnb"        data-tab="map"       onclick="mobSwitch('map',this)"><span class="ico">🗺️</span>Mapa</button>
+    <button class="mnb"        data-tab="routes"    onclick="mobSwitch('routes',this)"><span class="ico">📍</span>Rutas</button>
+    <button class="mnb"        data-tab="optimizer" onclick="mobSwitch('optimizer',this)"><span class="ico">⚡</span>Ruta opt.</button>
+    <button class="mnb"        data-tab="carga"     onclick="mobSwitch('carga',this)"><span class="ico">📦</span>Carga</button>
+    <button class="mnb"        data-tab="clients"   onclick="mobSwitch('clients',this)"><span class="ico">👥</span>Clientes</button>
+    <button class="mnb"        data-tab="settings"  onclick="mobSwitch('settings',this)"><span class="ico">⚙️</span>Config</button>
   </div>
 </nav>
 
@@ -1579,14 +1609,20 @@ function renderRoutes(){
   if(!drivers.length){el.innerHTML=`<div class="empty"><div class="empty-icon">🗺️</div><div class="empty-txt">Sin rutas para este día.</div></div>`;return;}
   el.innerHTML=drivers.map(drv=>{
     const dd=deliveries.filter(d=>d.driver===drv);
+    // Calcular ETAs para este conductor usando el origen ficticio (sin coords reales aquí)
+    const drvWithCoords = dd.filter(x=>x.lat&&x.lng);
+    const fakeOrigin = drvWithCoords.length ? {lat:drvWithCoords[0].lat, lng:drvWithCoords[0].lng} : {};
+    const drvEtas = calcETAs(fakeOrigin, dd);
     const stops=dd.map((d,i)=>{
       const ref=d.reference||(d._client&&d._client.reference)||'';
       const navDest = (d.lat && d.lng) ? `${d.lat},${d.lng}` : encodeURIComponent(d.address);
       const navUrl  = `https://www.google.com/maps/dir/?api=1&destination=${navDest}&travelmode=driving&dir_action=navigate`;
+      const eta = drvEtas[i];
       return`<div class="stop ${d.completed?'completed-stop':''}">
         <div class="snum" style="background:${COLORS[drv]};color:#000">${i+1}</div>
         <div class="sbody">
           <div class="sname">${d.name} ${d.completed?'✅':''}</div>
+          ${eta?`<div class="seta">🕐 Llegada estimada: ~${eta.arrivalStr}</div>`:''}
           <div class="saddr">${d.address}</div>
           ${ref?`<div class="sref">🔖 ${ref}</div>`:''}
           ${d.client_phone?`<div class="saddr">📞 ${d.client_phone}</div>`:''}
@@ -1595,11 +1631,7 @@ function renderRoutes(){
             ${d.payment?`<span class="opt-order-chip payment">💳 ${d.payment}</span>`:''}
           </div>`:''}
           <div class="stime">⏰ ${d.time_start} – ${d.time_end}</div>
-          <div class="stimes">
-            <input type="time" value="${d.departed_at||''}" onchange="patchDelivery('${d.id}',{departed_at:this.value})" title="Salida">
-            <input type="time" value="${d.arrived_at||''}" onchange="patchDelivery('${d.id}',{arrived_at:this.value})" title="Llegada">
-          </div>
-          <div class="slabels"><span>↗ Salida</span><span>↙ Llegada</span></div>
+
           ${!d.completed?`<div class="btn-nav-row">
             <button class="btn-ir-gmaps" onclick="window.open('${navUrl}','_blank')">🗺️ Google Maps</button>
             <button class="btn-ir-waze"  onclick="window.open('https://waze.com/ul?ll=${d.lat&&d.lng?d.lat+','+d.lng:''}&q=${encodeURIComponent(d.address)}&navigate=yes','_blank')">🚗 Waze</button>
@@ -1688,6 +1720,7 @@ function setOptDriver(drv,el){
 
 async function runOptimizer(){
   let origin = selectedDP;
+  console.log('[OPT] selectedDP al optimizar:', selectedDP?.name, '| customDPSelected:', customDPSelected);
 
   if(customDPSelected){
     const name = document.getElementById('cdp-name').value.trim() || 'Punto de partida';
@@ -1897,6 +1930,50 @@ async function _loadOptAny(){
 }
 // ─────────────────────────────────────────────────────────────────────────
 
+
+// ════════════════════════════════════════════════════════
+//  ETA — Tiempos estimados de llegada
+// ════════════════════════════════════════════════════════
+let ETA_SPEED_KMH   = 30;    // velocidad promedio ciudad (editable)
+let ETA_SERVICE_MIN = 10;    // minutos de atención por cliente (editable)
+let ETA_START_TIME  = '09:00'; // hora de salida (editable)
+
+function calcETAs(origin, ordered){
+  // Devuelve array de {arrivalMin, departMin} en minutos desde medianoche
+  const [sh, sm] = ETA_START_TIME.split(':').map(Number);
+  let cursor = sh * 60 + sm; // minutos desde medianoche
+
+  const haversineMin = (a, b) => {
+    if(!a.lat||!a.lng||!b.lat||!b.lng) return 15; // fallback 15 min
+    const R=6371, dLat=(b.lat-a.lat)*Math.PI/180, dLng=(b.lng-a.lng)*Math.PI/180;
+    const x=Math.sin(dLat/2)**2+Math.cos(a.lat*Math.PI/180)*Math.cos(b.lat*Math.PI/180)*Math.sin(dLng/2)**2;
+    const km=R*2*Math.atan2(Math.sqrt(x),Math.sqrt(1-x));
+    return Math.round(km/ETA_SPEED_KMH*60);
+  };
+
+  const fmt = (mins) => {
+    const h=Math.floor(mins/60)%24, m=mins%60;
+    return `${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}`;
+  };
+
+  const etas = [];
+  let prev = origin;
+  for(const stop of ordered){
+    const travelMin = haversineMin(prev, stop);
+    const arrivalMin = cursor + travelMin;
+    const departMin  = arrivalMin + ETA_SERVICE_MIN;
+    etas.push({ arrivalMin, departMin, travelMin, arrivalStr: fmt(arrivalMin), departStr: fmt(departMin) });
+    cursor = departMin;
+    prev = stop;
+  }
+  return etas;
+}
+
+function fmtMin(mins){
+  const h=Math.floor(mins/60)%24, m=mins%60;
+  return `${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}`;
+}
+
 function renderOptResult(result){
   currentOptResult = result;
   const el = document.getElementById('opt-result');
@@ -1911,7 +1988,19 @@ function renderOptResult(result){
     </div>
   `;
 
+  const etas = calcETAs(result.origin, result.ordered);
+  const totalMins = etas.length ? etas[etas.length-1].departMin - (()=>{const[h,m]=ETA_START_TIME.split(':').map(Number);return h*60+m;})() : 0;
+  const totalHrs  = Math.floor(totalMins/60), totalMin2 = totalMins%60;
+  const etaSummaryHTML = etas.length ? `
+    <div class="opt-eta-summary">
+      <div><span>🕐 Salida </span><b>${ETA_START_TIME}</b></div>
+      <div><span>🏁 Fin estimado </span><b>${etas[etas.length-1].departStr}</b></div>
+      <div><span>⏱ Duración total </span><b>${totalHrs}h ${totalMin2}min</b></div>
+      <div><span>📍 ${result.stops} paradas · 🚗 ${ETA_SPEED_KMH}km/h · ⏳ ${ETA_SERVICE_MIN}min/cliente</span></div>
+    </div>` : '';
+
   const stopsHTML = result.ordered.map((s, i) => {
+    const eta = etas[i];
     const chips = [
       s.amount  ? `<span class="opt-order-chip amount">💵 ${s.amount}</span>`   : '',
       s.product ? `<span class="opt-order-chip product">📦 ${s.product}</span>` : '',
@@ -1925,6 +2014,7 @@ function renderOptResult(result){
       <div class="opt-snum">${i + 1}</div>
       <div class="opt-sbody">
         <div class="opt-sname">${s.name || 'Parada'}${s._new ? '<span class="opt-new-badge">NUEVO</span>' : ''}</div>
+        ${eta ? `<div class="opt-eta">🕐 Llegada ~${eta.arrivalStr} · viaje ${eta.travelMin}min</div>` : ''}
         <div class="opt-saddr">${s.formatted_address || s.address || ''}</div>
         ${s.reference ? `<div class="opt-sref">🔖 ${s.reference}</div>` : ''}
         ${chips ? `<div class="opt-order">${chips}</div>` : ''}
@@ -1952,6 +2042,7 @@ function renderOptResult(result){
         </div>
       </div>
       ${originHTML}
+      ${etaSummaryHTML}
       <div class="opt-drag-hint">⠿ Arrastra las paradas para cambiar el orden</div>
       <div id="opt-sortable-list">${stopsHTML}</div>
       <button class="btn-apply-order" onclick="applyOptOrder()">
@@ -1976,21 +2067,15 @@ function renderOptResult(result){
       ghostClass:  'sortable-ghost',
       chosenClass: 'sortable-chosen',
       onEnd(evt){
-        // Leer el orden actual del DOM ANTES de tocar data-idx
+        // Leer el orden actual del DOM ANTES de re-renderizar
         const snapshot = Array.from(
           listEl.querySelectorAll('.opt-stop[data-idx]')
         ).map(row => currentOptResult.ordered[parseInt(row.dataset.idx)]);
 
-        // Ahora actualizar data-idx y badges del panel
-        listEl.querySelectorAll('.opt-stop[data-idx]').forEach((row, i) => {
-          row.dataset.idx = i;
-          const badge = row.querySelector('.opt-snum');
-          if(badge) badge.textContent = i + 1;
-        });
-
-        // Guardar nuevo orden — el usuario verá los cambios al presionar "Ver en mapa"
+        // Actualizar datos y re-renderizar completo para recalcular ETAs
         currentOptResult = { ...currentOptResult, ordered: snapshot };
-        _saveOpt(); // ← guardar en servidor (fire-and-forget, no bloquea UI)
+        renderOptResult(currentOptResult); // recalcula ETAs con nuevo orden
+        _saveOpt(); // guardar en servidor
       }
     });
   }
@@ -2355,6 +2440,14 @@ function mobSwitch(tab,el){
       }
     },250);
   } else {
+    // Al salir de optimizer en móvil: limpiar marcadores de ruta del mapa
+    const prevTab = document.querySelector('.mnb.active')?.dataset?.tab || '';
+    if(prevTab === 'optimizer' || tab !== 'optimizer'){
+      clearRouteLines();
+      Object.keys(markers)
+        .filter(k => k.startsWith('opt_'))
+        .forEach(k => { map.removeLayer(markers[k]); delete markers[k]; });
+    }
     panel.style.display='';mapCol.classList.remove('mob-show');switchPanel(tab,null);
   }
   document.querySelectorAll('.mnb').forEach(b=>b.classList.remove('active'));
