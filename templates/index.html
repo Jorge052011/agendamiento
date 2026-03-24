@@ -1474,11 +1474,28 @@ async function saveEdit(id){
   const ts     =document.getElementById(`${eid}-ts`).value;
   const te     =document.getElementById(`${eid}-te`).value;
   const driver =document.getElementById(`${eid}-driver`).value;
+  const phoneRaw=document.getElementById(`${eid}-phone`).value.replace(/\s/g,'');
+  const product =document.getElementById(`${eid}-product`).value;
+  const amount  =document.getElementById(`${eid}-amount`).value.trim();
+  const payment =document.getElementById(`${eid}-payment`).value;
 
   if(!name){toast('⚠️ El nombre no puede estar vacío');return;}
 
   // Construir payload
-  const patch={name,reference:ref,time_start:ts,time_end:te,driver};
+  const patch={name,reference:ref,time_start:ts,time_end:te,driver,product,amount,payment};
+
+  // Teléfono: actualizar cliente y delivery si cambió
+  const oldPhone = d.client_phone||'';
+  if(phoneRaw && phoneRaw !== oldPhone){
+    // Actualizar cliente con nuevo teléfono
+    if(oldPhone){
+      await fetch(`/api/clients/${oldPhone}`,{
+        method:'PATCH',headers:{'Content-Type':'application/json'},
+        body:JSON.stringify({phone:phoneRaw, name})
+      });
+    }
+    patch.client_phone = phoneRaw;
+  }
 
   // Dirección: solo actualizar si cambió Y fue seleccionada de Google
   const addrChanged=addrRaw&&addrRaw!==d.address;
@@ -1578,6 +1595,31 @@ function renderList(){
           <div class="edit-field">
             <div class="edit-label">Referencia</div>
             <input id="${eid}-ref" type="text" value="${(ref||'').replace(/"/g,'&quot;')}">
+          </div>
+          <div class="edit-field">
+            <div class="edit-label">Teléfono</div>
+            <input id="${eid}-phone" type="tel" value="${(d.client_phone||'').replace(/"/g,'&quot;')}"
+              oninput="this.value=this.value.replace(/\s/g,'')">
+          </div>
+          <div class="edit-field" style="grid-column:1/-1">
+            <div class="edit-label">Producto</div>
+            <select id="${eid}-product">
+              <option value="">Seleccionar...</option>
+              ${['8 k ca lav','16 k ca lav','20 k ca lav','24 k ca lav','28 k ca lav','32 k ca lav','40 k ca lav','20 k ca tal','40 k ca tal','8 k lav','16 k lav','20 k lav','24 k lav','28 k lav','32 k lav','40 k lav'].map(p=>`<option ${d.product===p?'selected':''}>${p}</option>`).join('')}
+            </select>
+          </div>
+          <div class="edit-row" style="grid-column:1/-1">
+            <div class="edit-field">
+              <div class="edit-label">Cantidad</div>
+              <input id="${eid}-amount" type="text" value="${(d.amount||'').replace(/"/g,'&quot;')}">
+            </div>
+            <div class="edit-field">
+              <div class="edit-label">Forma de pago</div>
+              <select id="${eid}-payment">
+                <option value="">Seleccionar...</option>
+                ${['Efectivo','Transferencia','Débito','Crédito'].map(p=>`<option ${d.payment&&d.payment.toLowerCase()===p.toLowerCase()?'selected':''}>${p}</option>`).join('')}
+              </select>
+            </div>
           </div>
           <div class="edit-row" style="grid-column:1/-1">
             <div class="edit-field">
