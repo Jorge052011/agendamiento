@@ -362,8 +362,111 @@ textarea{resize:vertical;min-height:50px;}
 .mnb{flex:1;min-width:44px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1px;background:none;border:none;color:var(--mut);cursor:pointer;font-size:.52rem;font-family:'DM Sans',sans-serif;transition:color .18s;touch-action:manipulation;padding:0;}
 .mnb .ico{font-size:1.1rem;line-height:1;}
 .mnb.active{color:var(--acc);}
-@media(max-width:900px){.cal-col{display:none;}#btn-mob-cal{display:block!important;}.map-col{display:none;}.map-col.mob-show{display:flex;}.desk-nav{display:none;}.mob-nav{display:flex;}.main{padding-bottom:var(--tab-h);}.panel{flex:1;max-width:100%;}#toast{bottom:calc(var(--tab-h) + max(8px,env(safe-area-inset-bottom,0px)));}}
+@media(max-width:900px){.cal-col{display:none;}#btn-mob-cal{display:block!important;}.map-col{display:none;}.map-col.mob-show{display:flex;}.desk-nav{display:none;}.mob-nav{display:flex;}.main{padding-bottom:var(--tab-h);}.panel{flex:1;max-width:100%;}#toast{bottom:calc(var(--tab-h) + max(8px,env(safe-area-inset-bottom,0px)));} html{font-size:15px;}}
 @media(max-width:600px){header{padding:0 .75rem;}.hdr-date{font-size:.7rem;padding:3px 8px;}.panel-hd{padding:.65rem .9rem .4rem;}.scrollable{padding:.65rem .9rem;}.filter-bar{padding:.35rem .9rem;}.form-row{grid-template-columns:1fr;}.dp-grid{grid-template-columns:1fr;}}
+
+/* ══ MEJORAS MÓVIL ══════════════════════════════════════
+   Aplica solo en pantallas ≤480px (teléfonos)
+   No afecta tablet ni escritorio
+═══════════════════════════════════════════════════════ */
+@media(max-width:480px){
+  /* Variables: fuentes base más grandes */
+  :root{ --mob-scale:1.08; }
+
+  /* Navegación inferior: más alta y con texto más legible */
+  :root{ --tab-h:62px; }
+  .mnb{ font-size:.65rem; gap:3px; }
+  .mnb .ico{ font-size:1.35rem; }
+
+  /* Header */
+  header{ height:52px; }
+  .hdr-date{ font-size:.78rem; padding:4px 10px; }
+
+  /* Títulos de panel */
+  .panel-title{ font-size:1rem !important; }
+  .panel-hd{ padding:.7rem 1rem .5rem; }
+
+  /* Tarjetas de pedidos: todo más grande */
+  .d-card{ padding:.85rem 1rem; margin-bottom:.55rem; border-radius:11px; }
+  .card-name{ font-size:.95rem !important; }
+  .card-addr{ font-size:.82rem !important; line-height:1.4; }
+  .card-ref{ font-size:.78rem !important; }
+  .card-phone{ font-size:.8rem !important; }
+  .card-top{ margin-bottom:4px; }
+
+  /* Tags (producto, pago, hora, repartidor) */
+  .tag{ font-size:.72rem !important; padding:3px 8px !important; border-radius:5px; }
+
+  /* Botones de acción en tarjeta */
+  .ibtn{ width:32px; height:32px; font-size:1rem; border-radius:7px; }
+
+  /* Formulario nuevo pedido */
+  .scrollable{ padding:.75rem 1rem; }
+  .filter-bar{ padding:.4rem 1rem; gap:6px; }
+  label{ font-size:.8rem !important; }
+  input, select, textarea{
+    font-size:.88rem !important;
+    padding:.5rem .75rem !important;
+    border-radius:8px !important;
+  }
+  .btn-primary{ font-size:.88rem; padding:.65rem 1rem; border-radius:9px; }
+  .btn-secondary{ font-size:.82rem; padding:.55rem .9rem; }
+
+  /* Filtros */
+  .filter-bar .fb{ font-size:.72rem !important; padding:5px 11px !important; }
+
+  /* Tarjetas de clientes */
+  .client-card{ padding:.85rem 1rem; border-radius:11px; }
+  .cc-name{ font-size:.92rem !important; }
+  .cc-phone{ font-size:.8rem !important; }
+  .cc-addr{ font-size:.8rem !important; }
+  .cc-ref{ font-size:.75rem !important; }
+
+  /* Búsqueda y sort en clientes */
+  #cli-search, #cli-sort{ font-size:.82rem !important; padding:.5rem .75rem !important; }
+
+  /* Rutas */
+  .sname{ font-size:.88rem !important; }
+  .saddr{ font-size:.78rem !important; }
+  .seta{ font-size:.75rem !important; }
+  .route-hd{ font-size:.85rem; }
+  .rdriver{ font-size:.82rem !important; }
+  .rsub{ font-size:.75rem !important; }
+
+  /* Popup mapa */
+  .pu-name{ font-size:.95rem !important; }
+  .pu-addr{ font-size:.8rem !important; }
+  .pu-row{ font-size:.8rem !important; }
+
+  /* Carga del día */
+  .carga-col-title{ font-size:.88rem !important; }
+  .sku-row{ font-size:.82rem !important; padding:.55rem .75rem; gap:.6rem; }
+  .balance-stat-lbl{ font-size:.72rem !important; }
+  .balance-stat-val{ font-size:1.1rem !important; }
+  .carga-pedido-name{ font-size:.88rem !important; }
+
+  /* Configuración */
+  .cfg-title{ font-size:.82rem !important; }
+  .cfg-block{ padding:.9rem 1rem; }
+
+  /* Stats footer */
+  .stat-num{ font-size:1.4rem !important; }
+  .stat-pill{ font-size:.72rem !important; }
+
+  /* Modal cliente */
+  #cli-modal > div{ padding:1.4rem 1.1rem; border-radius:16px; }
+  #cli-modal-title{ font-size:1rem !important; }
+  #cli-modal label{ font-size:.78rem !important; }
+  #cli-modal input{ font-size:.88rem !important; padding:.5rem .75rem !important; }
+  #cli-modal button{ font-size:.85rem !important; padding:.6rem !important; }
+
+  /* Empty state */
+  .empty-icon{ font-size:2.2rem; }
+  .empty-txt{ font-size:.85rem !important; }
+
+  /* Toast */
+  #toast{ font-size:.88rem; padding:11px 22px; }
+}
 
 /* ── CARGA DEL DÍA ── */
 .carga-date-bar{display:flex;align-items:center;gap:.5rem;padding:.5rem 1.1rem;border-bottom:1px solid var(--brd);flex-shrink:0;}
