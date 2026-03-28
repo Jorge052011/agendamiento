@@ -774,8 +774,61 @@ textarea{resize:vertical;min-height:50px;}
       <div class="panel-hd">
         <div class="panel-title">👥 Clientes</div>
         <span class="badge" id="clients-count">0</span>
+        <button class="btn-primary" style="margin-left:auto;padding:.3rem .9rem;font-size:.75rem" onclick="openClientModal(null)">+ Nuevo</button>
+      </div>
+      <!-- Búsqueda y ordenamiento -->
+      <div style="display:flex;gap:.4rem;padding:.45rem .6rem .1rem;flex-shrink:0">
+        <input id="cli-search" type="text" placeholder="🔍 Nombre o teléfono…" oninput="renderClientList()"
+          style="flex:1;background:var(--surf2);border:1px solid var(--brd);border-radius:7px;padding:.38rem .65rem;font-size:.75rem;color:var(--txt);outline:none">
+        <select id="cli-sort" onchange="renderClientList()"
+          style="background:var(--surf2);border:1px solid var(--brd);border-radius:7px;padding:.38rem .5rem;font-size:.72rem;color:var(--mut2);outline:none">
+          <option value="name">A–Z</option>
+          <option value="name-desc">Z–A</option>
+          <option value="phone">Teléfono</option>
+          <option value="recent">Recientes</option>
+        </select>
       </div>
       <div class="scrollable" id="clients-list"></div>
+    </div>
+
+    <!-- ══ MODAL CRUD CLIENTE ══ -->
+    <div id="cli-modal" onclick="if(event.target===this)closeClientModal()"
+      style="display:none;position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,.65);align-items:center;justify-content:center;padding:1rem">
+      <div style="background:var(--surf);border:1px solid var(--brd);border-radius:14px;padding:1.25rem;width:min(98vw,400px);max-height:90vh;overflow-y:auto">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1rem">
+          <div id="cli-modal-title" style="font-family:'Syne',sans-serif;font-weight:700;font-size:.95rem">Nuevo cliente</div>
+          <button onclick="closeClientModal()" style="background:none;border:none;color:var(--mut);font-size:1.3rem;cursor:pointer;line-height:1">✕</button>
+        </div>
+        <div style="display:grid;gap:.6rem">
+          <div>
+            <label style="font-size:.67rem;color:var(--mut2);display:block;margin-bottom:3px">Teléfono *</label>
+            <input id="cli-f-phone" type="tel" placeholder="56912345678"
+              style="width:100%;background:var(--surf2);border:1px solid var(--brd);border-radius:7px;padding:.42rem .65rem;font-size:.8rem;color:var(--txt);outline:none">
+          </div>
+          <div>
+            <label style="font-size:.67rem;color:var(--mut2);display:block;margin-bottom:3px">Nombre *</label>
+            <input id="cli-f-name" type="text" placeholder="Nombre completo"
+              style="width:100%;background:var(--surf2);border:1px solid var(--brd);border-radius:7px;padding:.42rem .65rem;font-size:.8rem;color:var(--txt);outline:none">
+          </div>
+          <div>
+            <label style="font-size:.67rem;color:var(--mut2);display:block;margin-bottom:3px">Dirección</label>
+            <input id="cli-f-addr" type="text" placeholder="Dirección"
+              style="width:100%;background:var(--surf2);border:1px solid var(--brd);border-radius:7px;padding:.42rem .65rem;font-size:.8rem;color:var(--txt);outline:none">
+          </div>
+          <div>
+            <label style="font-size:.67rem;color:var(--mut2);display:block;margin-bottom:3px">Referencia / Depto</label>
+            <input id="cli-f-ref" type="text" placeholder="Depto, piso, referencia…"
+              style="width:100%;background:var(--surf2);border:1px solid var(--brd);border-radius:7px;padding:.42rem .65rem;font-size:.8rem;color:var(--txt);outline:none">
+          </div>
+        </div>
+        <div id="cli-modal-err" style="display:none;color:var(--acc3);font-size:.72rem;margin-top:.55rem;padding:.3rem .5rem;background:rgba(240,64,144,.08);border-radius:6px"></div>
+        <div style="display:flex;gap:.5rem;margin-top:1rem">
+          <button onclick="closeClientModal()"
+            style="flex:1;background:var(--surf2);border:1px solid var(--brd);border-radius:8px;padding:.5rem;font-size:.78rem;color:var(--mut2);cursor:pointer">Cancelar</button>
+          <button id="cli-modal-save" onclick="saveClientModal()"
+            style="flex:2;background:var(--acc);border:none;border-radius:8px;padding:.5rem;font-size:.78rem;font-weight:700;color:#000;cursor:pointer">💾 Guardar</button>
+        </div>
+      </div>
     </div>
 
     <!-- AJUSTES -->
@@ -1704,20 +1757,56 @@ function updateStats(){
 // ════════════════════════════════════════════════════════
 //  CLIENTES PAGE
 // ════════════════════════════════════════════════════════
+// ════════════════════════════════════════════════════════
+//  CRUD CLIENTES
+// ════════════════════════════════════════════════════════
+let allClients = [];
+let cliEditPhone = null; // null=crear, string=editar
+
 async function loadClients(){
-  const r=await fetch('/api/clients');
-  const clients=await r.json();
-  document.getElementById('clients-count').textContent=clients.length;
-  const el=document.getElementById('clients-list');
-  if(!clients.length){
-    el.innerHTML=`<div class="empty"><div class="empty-icon">👥</div><div class="empty-txt">Aún no hay clientes registrados.<br>Se crean automáticamente al agregar entregas.</div></div>`;
+  try{
+    const r = await fetch('/api/clients');
+    allClients = await r.json();
+  } catch(e){ allClients = []; }
+  renderClientList();
+}
+
+function renderClientList(){
+  const q    = (document.getElementById('cli-search')?.value||'').toLowerCase().trim();
+  const sort = document.getElementById('cli-sort')?.value || 'name';
+  const el   = document.getElementById('clients-list');
+
+  let list = allClients.filter(c =>
+    (c.name||'').toLowerCase().includes(q) ||
+    (c.phone_raw||c.phone||'').includes(q) ||
+    (c.formatted_address||c.address||'').toLowerCase().includes(q)
+  );
+
+  list.sort((a,b)=>{
+    if(sort==='name')      return (a.name||'').localeCompare(b.name||'','es');
+    if(sort==='name-desc') return (b.name||'').localeCompare(a.name||'','es');
+    if(sort==='phone')     return (a.phone||'').localeCompare(b.phone||'');
+    if(sort==='recent')    return (b.created_at||'').localeCompare(a.created_at||'');
+    return 0;
+  });
+
+  document.getElementById('clients-count').textContent = allClients.length;
+
+  if(!list.length){
+    el.innerHTML = allClients.length
+      ? `<div class="empty"><div class="empty-icon">🔍</div><div class="empty-txt">Sin resultados para "<b>${q}</b>"</div></div>`
+      : `<div class="empty"><div class="empty-icon">👥</div><div class="empty-txt">Aún no hay clientes registrados.<br>Se crean automáticamente al agregar entregas.</div></div>`;
     return;
   }
-  el.innerHTML=clients.map(c=>`
+
+  el.innerHTML = list.map(c=>`
     <div class="client-card">
       <div class="cc-top">
-        <div class="cc-name">${c.name||'Sin nombre'}${c.geocode_source==='google'?'<span class="cc-badge google">📍 Google</span>':''}</div>
-        <button class="ibtn del" onclick="deleteClient('${c.phone}')">✕</button>
+        <div class="cc-name">${c.name||'Sin nombre'}${c.geocode_source==='google'?'<span class="cc-badge google">📍</span>':''}</div>
+        <div style="display:flex;gap:.25rem;flex-shrink:0">
+          <button class="ibtn" style="font-size:.8rem" title="Editar" onclick="openClientModal('${c.phone}')">✏️</button>
+          <button class="ibtn del" title="Eliminar" onclick="deleteClient('${c.phone}')">✕</button>
+        </div>
       </div>
       <div class="cc-phone">📞 ${c.phone_raw||c.phone}</div>
       <div class="cc-addr">📍 ${c.formatted_address||c.address||'Sin dirección'}</div>
@@ -1725,10 +1814,89 @@ async function loadClients(){
     </div>
   `).join('');
 }
+
+function openClientModal(phone){
+  cliEditPhone = phone || null;
+  const err = document.getElementById('cli-modal-err');
+  err.style.display = 'none';
+  const fPhone = document.getElementById('cli-f-phone');
+
+  if(phone){
+    const c = allClients.find(x=>x.phone===phone) || {};
+    document.getElementById('cli-modal-title').textContent = '✏️ Editar cliente';
+    fPhone.value    = c.phone_raw || c.phone || '';
+    fPhone.disabled = true;
+    document.getElementById('cli-f-name').value = c.name || '';
+    document.getElementById('cli-f-addr').value = c.formatted_address || c.address || '';
+    document.getElementById('cli-f-ref').value  = c.reference || '';
+  } else {
+    document.getElementById('cli-modal-title').textContent = '➕ Nuevo cliente';
+    fPhone.value    = '';
+    fPhone.disabled = false;
+    document.getElementById('cli-f-name').value = '';
+    document.getElementById('cli-f-addr').value = '';
+    document.getElementById('cli-f-ref').value  = '';
+  }
+  document.getElementById('cli-modal').style.display = 'flex';
+  setTimeout(()=>document.getElementById(phone?'cli-f-name':'cli-f-phone').focus(), 80);
+}
+
+function closeClientModal(){
+  document.getElementById('cli-modal').style.display = 'none';
+  document.getElementById('cli-f-phone').disabled = false;
+}
+
+async function saveClientModal(){
+  const err   = document.getElementById('cli-modal-err');
+  const btn   = document.getElementById('cli-modal-save');
+  const phone = document.getElementById('cli-f-phone').value.trim();
+  const name  = document.getElementById('cli-f-name').value.trim();
+  const addr  = document.getElementById('cli-f-addr').value.trim();
+  const ref   = document.getElementById('cli-f-ref').value.trim();
+
+  err.style.display = 'none';
+  if(!name){ err.textContent='El nombre es obligatorio.'; err.style.display='block'; return; }
+  if(!cliEditPhone && !phone){ err.textContent='El teléfono es obligatorio.'; err.style.display='block'; return; }
+
+  btn.textContent = '⏳ Guardando…'; btn.disabled = true;
+  try{
+    let r;
+    if(cliEditPhone){
+      r = await fetch(`/api/clients/${cliEditPhone}`, {
+        method:'PATCH', headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({name, address:addr, formatted_address:addr, reference:ref})
+      });
+    } else {
+      r = await fetch('/api/clients', {
+        method:'POST', headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({phone, name, address:addr, formatted_address:addr, reference:ref})
+      });
+    }
+    if(!r.ok){
+      const e = await r.json().catch(()=>({}));
+      err.textContent = e.error || `Error ${r.status}`;
+      err.style.display = 'block';
+      return;
+    }
+    closeClientModal();
+    await loadClients();
+    toast(cliEditPhone ? '✅ Cliente actualizado' : '✅ Cliente creado');
+  } catch(e){
+    err.textContent = 'Error de conexión con el servidor.';
+    err.style.display = 'block';
+  } finally {
+    btn.textContent = '💾 Guardar'; btn.disabled = false;
+  }
+}
+
 async function deleteClient(phone){
-  if(!confirm('¿Eliminar este cliente?'))return;
-  await fetch(`/api/clients/${phone}`,{method:'DELETE'});
-  loadClients();toast('🗑️ Cliente eliminado');
+  if(!confirm('¿Eliminar este cliente? Esta acción no se puede deshacer.'))return;
+  try{
+    await fetch(`/api/clients/${phone}`,{method:'DELETE'});
+    allClients = allClients.filter(c=>c.phone!==phone);
+    renderClientList();
+    toast('🗑️ Cliente eliminado');
+  } catch(e){ toast('❌ Error al eliminar'); }
 }
 
 // ════════════════════════════════════════════════════════
