@@ -302,6 +302,7 @@ textarea{resize:vertical;min-height:50px;}
 .opt-order-chip.amount{background:rgba(64,240,144,.12);color:var(--grn);}
 .opt-order-chip.payment{background:rgba(64,200,240,.12);color:var(--acc2);}
 .opt-sdist{font-size:.61rem;color:var(--mut);margin-top:1px;}
+.opt-stime{margin:3px 0 2px;}
 .btn-gmaps{background:linear-gradient(135deg,#4285f4,#34a853);color:#fff;font-family:'Syne',sans-serif;font-weight:700;font-size:.8rem;border:none;border-radius:9px;padding:11px;cursor:pointer;width:100%;margin-top:.65rem;transition:all .2s;display:flex;align-items:center;justify-content:center;gap:7px;touch-action:manipulation;}
 .btn-gmaps:hover{opacity:.9;}
 .btn-ver-mapa{background:var(--surf3);border:1.5px solid var(--acc);color:var(--acc);font-family:'Syne',sans-serif;font-weight:700;font-size:.8rem;border-radius:9px;padding:11px;cursor:pointer;width:100%;margin-top:.5rem;transition:all .2s;display:flex;align-items:center;justify-content:center;gap:7px;touch-action:manipulation;}
@@ -2311,6 +2312,7 @@ function renderOptResult(result){
         <div class="opt-saddr">${s.formatted_address || s.address || ''}</div>
         ${s.reference ? `<div class="opt-sref">🔖 ${s.reference}</div>` : ''}
         ${chips ? `<div class="opt-order">${chips}</div>` : ''}
+        ${(s.time_start||s.time_end) ? `<div class="opt-stime"><span class="tag time">⏰ ${s.time_start&&s.time_end ? s.time_start+' – '+s.time_end : (s.time_start||s.time_end)}</span></div>` : ''}
         <div class="btn-nav-row">
           <button class="btn-ir-gmaps" onclick="window.open('${navUrl}','_blank')">🗺️ Google Maps</button>
           <button class="btn-ir-waze"  onclick="window.open('https://waze.com/ul?ll=${s.lat&&s.lng?s.lat+','+s.lng:''}&q=${encodeURIComponent(s.formatted_address||s.address||'')}&navigate=yes','_blank')">🚗 Waze</button>
