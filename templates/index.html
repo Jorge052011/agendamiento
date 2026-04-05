@@ -1568,7 +1568,10 @@ async function patchDelivery(id,data){
       renderAll();refreshMarkers();
       // Actualizar estado en ruta optimizada sin reordenar
       if(currentOptResult?.ordered){
-        const oi=currentOptResult.ordered.findIndex(s=>s.id===id);
+        console.log('[OPT] Buscando id:', id, 'phone:', u.client_phone);
+        console.log('[OPT] ordered ids:', currentOptResult.ordered.map(s=>s.id));
+        const oi=currentOptResult.ordered.findIndex(s=>String(s.id)===String(id)||s.client_phone===u.client_phone);
+        console.log('[OPT] encontrado en índice:', oi);
         if(oi>-1){
           currentOptResult.ordered[oi].completed=u.completed;
           currentOptResult.ordered[oi].arrived_at=u.arrived_at;
