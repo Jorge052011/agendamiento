@@ -303,6 +303,11 @@ textarea{resize:vertical;min-height:50px;}
 .opt-order-chip.payment{background:rgba(64,200,240,.12);color:var(--acc2);}
 .opt-sdist{font-size:.61rem;color:var(--mut);margin-top:1px;}
 .opt-stime{margin:3px 0 2px;}
+.opt-stop.opt-completed{opacity:.55;background:rgba(0,200,83,.04);border-radius:8px;padding:6px 5px;}
+.opt-stop.opt-completed .opt-snum{background:#00c853;color:#000;}
+.opt-stop.opt-completed .opt-sname{text-decoration:line-through;color:var(--mut);}
+.opt-stop.opt-completed .btn-nav-row{display:none;}
+.opt-completed-badge{display:inline-block;font-size:.58rem;font-weight:700;background:#00c853;color:#000;border-radius:4px;padding:1px 6px;margin-left:5px;vertical-align:middle;letter-spacing:.03em;}
 .btn-gmaps{background:linear-gradient(135deg,#4285f4,#34a853);color:#fff;font-family:'Syne',sans-serif;font-weight:700;font-size:.8rem;border:none;border-radius:9px;padding:11px;cursor:pointer;width:100%;margin-top:.65rem;transition:all .2s;display:flex;align-items:center;justify-content:center;gap:7px;touch-action:manipulation;}
 .btn-gmaps:hover{opacity:.9;}
 .btn-ver-mapa{background:var(--surf3);border:1.5px solid var(--acc);color:var(--acc);font-family:'Syne',sans-serif;font-weight:700;font-size:.8rem;border-radius:9px;padding:11px;cursor:pointer;width:100%;margin-top:.5rem;transition:all .2s;display:flex;align-items:center;justify-content:center;gap:7px;touch-action:manipulation;}
@@ -2312,11 +2317,11 @@ function renderOptResult(result){
     const navDest = (s.lat && s.lng) ? `${s.lat},${s.lng}` : encodeURIComponent(s.formatted_address || s.address || '');
     const navUrl  = `https://www.google.com/maps/dir/?api=1&destination=${navDest}&travelmode=driving&dir_action=navigate`;
     return `
-    <div class="opt-stop draggable" data-idx="${i}">
+    <div class="opt-stop draggable${s.completed ? ' opt-completed' : ''}" data-idx="${i}">
       <div class="opt-drag-handle" title="Arrastra para reordenar">⠿</div>
       <div class="opt-snum">${i + 1}</div>
       <div class="opt-sbody">
-        <div class="opt-sname">${s.name || 'Parada'}${s._new ? '<span class="opt-new-badge">NUEVO</span>' : ''}</div>
+        <div class="opt-sname">${s.name || 'Parada'}${s.completed ? '<span class="opt-completed-badge">✓ Entregado</span>' : ''}${s._new ? '<span class="opt-new-badge">NUEVO</span>' : ''}</div>
         ${eta ? `<div class="opt-eta">🕐 Llegada ~${eta.arrivalStr} · viaje ${eta.travelMin}min</div>` : ''}
         <div class="opt-saddr">${s.formatted_address || s.address || ''}</div>
         ${s.reference ? `<div class="opt-sref">🔖 ${s.reference}</div>` : ''}
