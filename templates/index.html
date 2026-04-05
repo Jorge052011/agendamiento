@@ -1561,7 +1561,21 @@ async function deleteDelivery(id){
 async function patchDelivery(id,data){
   try{
     const r=await fetch(`/api/deliveries/${id}`,{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify(data)});
-    if(r.ok){const u=await r.json();const i=deliveries.findIndex(x=>x.id===id);if(i>-1)deliveries[i]=u;renderAll();refreshMarkers();}
+    if(r.ok){
+      const u=await r.json();
+      const i=deliveries.findIndex(x=>x.id===id);
+      if(i>-1)deliveries[i]=u;
+      renderAll();refreshMarkers();
+      // Actualizar estado en ruta optimizada sin reordenar
+      if(currentOptResult?.ordered){
+        const oi=currentOptResult.ordered.findIndex(s=>s.id===id);
+        if(oi>-1){
+          currentOptResult.ordered[oi].completed=u.completed;
+          currentOptResult.ordered[oi].arrived_at=u.arrived_at;
+          renderOptResult(currentOptResult);
+        }
+      }
+    }
     else{const err=await r.json().catch(()=>({}));toast('❌ Error al guardar: '+(err.error||r.status));}
   }catch(e){toast('❌ Sin conexión con el servidor');}
 }
