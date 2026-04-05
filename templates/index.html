@@ -882,14 +882,14 @@ textarea{resize:vertical;min-height:50px;}
         <button class="btn-primary" style="margin-left:auto;padding:.3rem .9rem;font-size:.75rem" onclick="openClientModal(null)">+ Nuevo</button>
       </div>
       <!-- Búsqueda y ordenamiento -->
-      <div style="display:flex;gap:.4rem;padding:.45rem .6rem .1rem;flex-shrink:0">
+      <div style="display:flex;flex-direction:column;gap:.35rem;padding:.45rem .6rem .1rem;flex-shrink:0">
         <input id="cli-search" type="text" placeholder="🔍 Nombre o teléfono…" oninput="renderClientList()"
-          style="flex:1;background:var(--surf2);border:1px solid var(--brd);border-radius:7px;padding:.38rem .65rem;font-size:.75rem;color:var(--txt);outline:none">
+          style="width:100%;background:var(--surf2);border:1px solid var(--brd);border-radius:7px;padding:.42rem .65rem;font-size:.82rem;color:var(--txt);outline:none">
         <select id="cli-sort" onchange="renderClientList()"
-          style="background:var(--surf2);border:1px solid var(--brd);border-radius:7px;padding:.38rem .5rem;font-size:.72rem;color:var(--mut2);outline:none">
+          style="width:100%;background:var(--surf2);border:1px solid var(--brd);border-radius:7px;padding:.42rem .5rem;font-size:.78rem;color:var(--mut2);outline:none">
           <option value="name">A–Z</option>
           <option value="name-desc">Z–A</option>
-          <option value="phone">Teléfono</option>
+          <option value="phone">Telefóno</option>
           <option value="recent">Recientes</option>
         </select>
       </div>
