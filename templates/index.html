@@ -1355,11 +1355,30 @@ function makeOriginIcon(){
   });
 }
 function addMarker(d){
-  if(!d.lat||!d.lng)return;
-  const list=deliveries.filter(x=>x.driver===d.driver);
-  const num=list.findIndex(x=>x.id===d.id)+1;
-  const ref=d.reference||d._client?.reference||'';
-  const m=L.marker([d.lat,d.lng],{icon:makeIcon(d.driver, num, 38, !d.completed)});
+  if(!d.lat || !d.lng) return;
+
+  const driverList = deliveries
+    .filter(x => x.driver === d.driver)
+    .sort((a,b) => {
+      const ao = parseInt(a.route_order);
+      const bo = parseInt(b.route_order);
+
+      const aHas = Number.isFinite(ao);
+      const bHas = Number.isFinite(bo);
+
+      if(aHas && bHas) return ao - bo;
+      if(aHas) return -1;
+      if(bHas) return 1;
+      return 0;
+    });
+
+  let num = driverList.findIndex(x => x.id === d.id) + 1;
+  if(Number.isFinite(parseInt(d.route_order))){
+    num = parseInt(d.route_order);
+  }
+
+  const ref = d.reference || d._client?.reference || '';
+  const m = L.marker([d.lat, d.lng], {icon: makeIcon(d.driver, num, 38, !d.completed)});
   m.bindPopup(`
     <div class="pu-name">${d.name}</div>
     <div class="pu-addr">📍 ${d.address}</div>
@@ -3217,7 +3236,8 @@ function verRepartoEnMapa(driver){
   markers[`rep_origin_${driver}`] = originMarker;
 
   stops.forEach((s,i)=>{
-    const m = L.marker([s.lat,s.lng],{icon:makeIcon(s.driver,i+1,38,!s.completed)});
+    const markerNum = Number.isFinite(parseInt(s.route_order)) ? parseInt(s.route_order) : (i + 1);
+    const m = L.marker([s.lat,s.lng],{icon:makeIcon(s.driver,markerNum,38,!s.completed)});
     m.addTo(map);
     markers[`rep_${s.id}`]=m;
   });
