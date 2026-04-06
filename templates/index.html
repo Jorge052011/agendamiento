@@ -2858,16 +2858,56 @@ function updateRepartoDriverConfig(driver, field, value){
   renderDriverColBody(driver);
 }
 
+function _normDPText(v){
+  return String(v || '')
+    .normalize('NFD')
+    .replace(/[̀-ͯ]/g,'')
+    .trim()
+    .toLowerCase();
+}
+
+function findMatchingDeparturePoint(dpLike){
+  if(!dpLike) return null;
+  const points = appConfig.departure_points || [];
+  if(!points.length) return null;
+
+  const byId = dpLike.id ? points.find(p => p.id === dpLike.id) : null;
+  if(byId) return byId;
+
+  const byPlaceId = dpLike.place_id ? points.find(p => p.place_id && p.place_id === dpLike.place_id) : null;
+  if(byPlaceId) return byPlaceId;
+
+  const targetName = _normDPText(dpLike.name);
+  const targetFmt  = _normDPText(dpLike.formatted_address || dpLike.address);
+
+  const byNameAndAddr = points.find(p => {
+    const nameOk = targetName && _normDPText(p.name) === targetName;
+    const addrOk = targetFmt && (_normDPText(p.formatted_address || p.address) === targetFmt);
+    return nameOk && addrOk;
+  });
+  if(byNameAndAddr) return byNameAndAddr;
+
+  const byName = targetName ? points.find(p => _normDPText(p.name) === targetName) : null;
+  if(byName) return byName;
+
+  const byAddr = targetFmt ? points.find(p => _normDPText(p.formatted_address || p.address) === targetFmt) : null;
+  if(byAddr) return byAddr;
+
+  return null;
+}
+
 function getResolvedRepartoDP(driver){
   let dp = repartoState[driver]?.dp || null;
   if(!dp) return null;
-  if((dp.lat == null || dp.lng == null) && dp.id){
-    const found = (appConfig.departure_points||[]).find(p => p.id === dp.id);
-    if(found){
-      repartoState[driver].dp = found;
-      dp = found;
-    }
+
+  const found = findMatchingDeparturePoint(dp);
+  if(found){
+    repartoState[driver].dp = found;
+    dp = found;
   }
+
+  if(dp.lat != null) dp.lat = parseFloat(dp.lat);
+  if(dp.lng != null) dp.lng = parseFloat(dp.lng);
   return dp;
 }
 
@@ -2890,9 +2930,8 @@ async function initReparto(){
         if(data?.ordered?.length){
           repartoState[drv].orders = data.ordered.map(s => s.id);
         }
-        if(data?.origin?.id){
-          const found = (appConfig.departure_points||[]).find(p => p.id === data.origin.id);
-          repartoState[drv].dp = found || data.origin;
+        if(data?.origin){
+          repartoState[drv].dp = findMatchingDeparturePoint(data.origin) || data.origin;
         }
       }
     } catch(e){}
@@ -3135,13 +3174,8 @@ function verRepartoEnMapa(driver){
     return;
   }
 
-  let resolvedOrigin = dp;
-
-  if((resolvedOrigin.lat == null || resolvedOrigin.lng == null) && resolvedOrigin.id){
-    const found = (appConfig.departure_points||[]).find(p=>p.id===resolvedOrigin.id);
-    if(found) resolvedOrigin = found;
-    repartoState[driver].dp = resolvedOrigin;
-  }
+  let resolvedOrigin = findMatchingDeparturePoint(dp) || dp;
+  repartoState[driver].dp = resolvedOrigin;
 
   if(resolvedOrigin.lat == null || resolvedOrigin.lng == null){
     toast(`⚠️ El punto de partida "${resolvedOrigin.name || 'Sin nombre'}" no tiene coordenadas guardadas. Regrábalo en Configuración seleccionando la dirección desde Google Maps.`);
@@ -3233,9 +3267,8 @@ async function refreshReparto(){
       if(r.ok){
         const d = await r.json();
         if(d?.ordered?.length) repartoState[drv].orders = d.ordered.map(s=>s.id);
-        if(d?.origin?.id){
-          const found = (appConfig.departure_points||[]).find(p=>p.id===d.origin.id);
-          repartoState[drv].dp = found || d.origin;
+        if(d?.origin){
+          repartoState[drv].dp = findMatchingDeparturePoint(d.origin) || d.origin;
         }
       }
     } catch(e){}
