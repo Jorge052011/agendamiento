@@ -318,10 +318,10 @@ textarea{resize:vertical;min-height:50px;}
 .reparto-dp-grid{display:flex;flex-wrap:wrap;gap:.35rem;}
 .reparto-dp-btn{background:var(--surf2);border:1.5px solid var(--brd);border-radius:8px;padding:.35rem .65rem;font-size:.72rem;cursor:pointer;color:var(--txt);transition:all .15s;text-align:left;}
 .reparto-dp-btn.selected{border-color:var(--acc);color:var(--acc);background:rgba(240,224,64,.08);}
-.reparto-drivers-wrap{display:flex;gap:0;overflow-x:auto;scroll-snap-type:x mandatory;-webkit-overflow-scrolling:touch;flex:1;min-height:0;}
+.reparto-drivers-wrap{display:flex;gap:0;overflow-x:auto;scroll-snap-type:x mandatory;-webkit-overflow-scrolling:touch;flex:1;min-height:200px;height:0;}
 .reparto-drivers-wrap::-webkit-scrollbar{height:3px;}
 .reparto-drivers-wrap::-webkit-scrollbar-thumb{background:var(--brd2);border-radius:3px;}
-.reparto-driver-col{min-width:280px;max-width:340px;width:85vw;flex-shrink:0;scroll-snap-align:start;display:flex;flex-direction:column;border-right:1px solid var(--brd);height:100%;}
+.reparto-driver-col{min-width:280px;max-width:340px;width:85vw;flex-shrink:0;scroll-snap-align:start;display:flex;flex-direction:column;border-right:1px solid var(--brd);overflow:hidden;}
 @media(min-width:901px){
   .reparto-driver-col{min-width:0;flex:1;width:auto;}
   .reparto-drivers-wrap{overflow-x:visible;}
@@ -930,14 +930,14 @@ textarea{resize:vertical;min-height:50px;}
     </div>
 
     <!-- MI RUTA — Módulo de reparto manual por repartidor -->
-    <div id="page-reparto" class="page" style="flex-direction:column;overflow:hidden;">
+    <div id="page-reparto" class="page" style="flex-direction:column;overflow:hidden;height:100%;">
       <div class="panel-hd" style="flex-shrink:0;">
         <div class="panel-title">📍 Mi Ruta</div>
       </div>
 
       <!-- Punto de partida -->
-      <div class="reparto-dp-section" id="reparto-dp-section">
-        <div class="reparto-dp-title">📍 Punto de partida</div>
+      <div class="reparto-dp-section" id="reparto-dp-section" style="flex-shrink:0;">
+        <div class="reparto-dp-title">📍 PUNTO DE PARTIDA</div>
         <div class="reparto-dp-grid" id="reparto-dp-buttons">
           <div style="font-size:.72rem;color:var(--mut);">Cargando...</div>
         </div>
@@ -951,11 +951,11 @@ textarea{resize:vertical;min-height:50px;}
           <input type="time" id="reparto-eta-start" value="14:00"
             style="background:var(--surf2);border:1px solid var(--brd);border-radius:5px;color:var(--txt);font-size:.7rem;padding:2px 4px;width:80px;"
             onchange="repartoEtaStart=this.value;renderAllDriverCols();">
-          <label style="font-size:.62rem;color:var(--mut);">km/h</label>
+          <label style="font-size:.62rem;color:var(--mut);">KM/H</label>
           <input type="number" id="reparto-eta-speed" value="25" min="10" max="80"
             style="background:var(--surf2);border:1px solid var(--brd);border-radius:5px;color:var(--txt);font-size:.7rem;padding:2px 4px;width:48px;"
             onchange="repartoEtaSpeed=parseInt(this.value)||25;renderAllDriverCols();">
-          <label style="font-size:.62rem;color:var(--mut);">min/cliente</label>
+          <label style="font-size:.62rem;color:var(--mut);">MIN/CLIENTE</label>
           <input type="number" id="reparto-eta-service" value="10" min="1" max="60"
             style="background:var(--surf2);border:1px solid var(--brd);border-radius:5px;color:var(--txt);font-size:.7rem;padding:2px 4px;width:44px;"
             onchange="repartoEtaService=parseInt(this.value)||10;renderAllDriverCols();">
@@ -967,8 +967,6 @@ textarea{resize:vertical;min-height:50px;}
         <!-- Generadas por JS -->
       </div>
     </div>
-
-    <!-- CLIENTES -->
     <div id="page-clients" class="page">
       <div class="panel-hd">
         <div class="panel-title">👥 Clientes</div>
@@ -2824,6 +2822,15 @@ let repartoOrders    = {};     // {driver: [ids]} orden manual guardado/local
 // ── Inicializar módulo ────────────────────────────────────────────────────
 async function initReparto(){
   renderRepartoDPButtons();
+
+  // Asegurar que deliveries esté cargado para la fecha actual
+  if(!deliveries || deliveries.length === 0){
+    try{
+      const r = await fetch(`/api/deliveries?date=${selectedDate}&_=${Date.now()}`);
+      if(r.ok) deliveries = await r.json();
+    } catch(e){}
+  }
+
   // Cargar órdenes guardadas de cada repartidor
   for(const drv of REPARTO_DRIVERS){
     try{
@@ -2837,6 +2844,7 @@ async function initReparto(){
       }
     } catch(e){}
   }
+  renderRepartoDPButtons(); // re-render con repartoDP ya seteado si venía del servidor
   renderAllDriverCols();
 }
 
@@ -2886,10 +2894,12 @@ function calcRepartoETAs(origin, stops){
 
 // ── Ordenar entregas de un repartidor según orden guardado ────────────────
 function getSortedStops(driver){
-  const today = deliveries.filter(d=>
-    d.driver===driver && d.delivery_date===selectedDate
-  );
-  const saved  = repartoOrders[driver] || [];
+  const today = deliveries.filter(d=>{
+    // Normalizar fecha — puede venir como "2026-04-05" o "2026-04-05T00:00:00"
+    const dDate = (d.delivery_date||'').substring(0,10);
+    return d.driver === driver && dDate === selectedDate;
+  });
+  const saved   = repartoOrders[driver] || [];
   const inOrder = saved.map(id=>today.find(d=>d.id===id)).filter(Boolean);
   const rest    = today.filter(d=>!saved.includes(d.id));
   return [...inOrder, ...rest];
@@ -2903,7 +2913,7 @@ function renderAllDriverCols(){
   for(const drv of REPARTO_DRIVERS){
     wrap.appendChild(buildDriverCol(drv));
   }
-  // Inicializar SortableJS en cada columna
+  // Inicializar SortableJS en cada columna (los elementos ya están en el DOM)
   for(const drv of REPARTO_DRIVERS){
     const listEl = document.getElementById(`reparto-list-${drv}`);
     if(listEl && window.Sortable){
@@ -2912,16 +2922,15 @@ function renderAllDriverCols(){
         handle:'.r-drag',
         ghostClass:'sortable-ghost',
         chosenClass:'sortable-chosen',
-        filter:'.r-completed',    // no arrastrar completados
+        filter:'.r-completed',
         onEnd(){
           const ids = Array.from(listEl.querySelectorAll('.reparto-stop[data-id]'))
             .map(el=>el.dataset.id);
           repartoOrders[drv] = ids;
           repartoDirty[drv]  = true;
-          // Marcar botón guardar como sucio
           const btn = document.getElementById(`reparto-save-${drv}`);
           if(btn){ btn.classList.add('dirty'); btn.textContent='💾 Guardar orden'; }
-          renderDriverColBody(drv); // re-render para recalcular ETAs
+          renderDriverColBody(drv);
         }
       });
     }
@@ -2960,7 +2969,10 @@ function buildDriverCol(driver){
 
 // ── Renderizar el cuerpo (lista de paradas) ────────────────────────────────
 function renderDriverColBody(driver, colEl){
-  const listEl = (colEl||document).getElementById(`reparto-list-${driver}`);
+  const root = colEl || document;
+  const listEl = colEl
+    ? colEl.querySelector(`#reparto-list-${driver}`)
+    : document.getElementById(`reparto-list-${driver}`);
   if(!listEl) return;
   const stops = getSortedStops(driver);
 
