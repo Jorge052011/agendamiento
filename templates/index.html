@@ -335,7 +335,7 @@ textarea{resize:vertical;min-height:50px;}
 .reparto-driver-badge.has-stops{background:rgba(240,224,64,.12);color:var(--acc);}
 .reparto-btn-mapa{margin-left:auto;background:transparent;border:1px solid var(--brd2);border-radius:6px;color:var(--mut);font-size:.68rem;padding:3px 8px;cursor:pointer;white-space:nowrap;transition:all .15s;}
 .reparto-btn-mapa:hover{border-color:var(--acc);color:var(--acc);}
-.reparto-driver-body{flex:1;overflow-y:auto;padding:.4rem .5rem;touch-action:pan-y;}
+.reparto-driver-body{flex:1;overflow-y:auto;padding:.4rem .5rem;touch-action:pan-y;overscroll-behavior:contain;}
 .reparto-empty{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:.4rem;padding:1.5rem .5rem;color:var(--mut);font-size:.78rem;text-align:center;}
 .reparto-stop{display:flex;gap:8px;align-items:flex-start;padding:6px 4px;border-top:1px solid var(--brd);cursor:grab;transition:background .15s;}
 .reparto-stop:first-child{border-top:none;}
@@ -345,7 +345,7 @@ textarea{resize:vertical;min-height:50px;}
 .reparto-stop.r-completed{cursor:default;opacity:.6;background:rgba(0,200,83,.04);border-radius:8px;padding:5px 4px;}
 .reparto-stop.r-completed .r-snum{background:#00c853!important;color:#000!important;}
 .reparto-stop.r-completed .r-sname{text-decoration:line-through;color:var(--mut);}
-.r-drag{font-size:1rem;color:var(--mut2);padding-top:1px;flex-shrink:0;user-select:none;touch-action:none;}
+.r-drag{font-size:1.3rem;color:var(--mut2);padding:4px 6px;flex-shrink:0;user-select:none;touch-action:none;cursor:grab;-webkit-user-select:none;}
 .r-snum{width:22px;height:22px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:.68rem;font-weight:700;color:#000;flex-shrink:0;margin-top:1px;}
 .r-snum.jorge{background:var(--jorge);}
 .r-snum.diego{background:var(--diego);}
@@ -2982,7 +2982,11 @@ function selectRepartoDPForDriver(driver, dpId){
   // Actualizar botones y recalcular ETAs solo en esta columna
   _refreshDriverDPButtons(driver);
   const listEl = document.getElementById(`reparto-list-${driver}`);
-  if(listEl) _fillStopsList(listEl, driver, getSortedStops(driver));
+  if(listEl) {
+    _fillStopsList(listEl, driver, getSortedStops(driver));
+    wireDriverSortable(driver);
+    _attachDragHandleListeners(driver);
+  }
   // Actualizar label de DP en cabecera de columna
   const dpInfo = document.getElementById(`reparto-dp-info-${driver}`);
   if(dpInfo){
@@ -3096,11 +3100,9 @@ function wireDriverSortable(driver){
     chosenClass:'sortable-chosen',
     filter:'.r-completed',
     preventOnFilter:false,
-    forceFallback: true,
-    fallbackTolerance: 3,
+    forceFallback: false,
     delay: 0,
-    delayOnTouchOnly: false,
-    touchStartThreshold: 3,
+    touchStartThreshold: 1,
     onEnd(){
       const ids = Array.from(listEl.querySelectorAll('.reparto-stop[data-id]'))
         .map(el=>el.dataset.id);
@@ -3128,9 +3130,22 @@ function wireDriverSortable(driver){
   });
 }
 
+function _attachDragHandleListeners(driver){
+  const listEl = document.getElementById('reparto-list-' + driver);
+  if(!listEl) return;
+  listEl.querySelectorAll('.r-drag').forEach(handle => {
+    // Remover listeners anteriores clonando el nodo
+    const fresh = handle.cloneNode(true);
+    handle.parentNode.replaceChild(fresh, handle);
+    fresh.addEventListener('touchstart', function(e){ e.stopPropagation(); }, { passive: false });
+    fresh.addEventListener('touchmove',  function(e){ e.preventDefault(); e.stopPropagation(); }, { passive: false });
+  });
+}
+
 function wireDriverSortables(){
   for(const drv of REPARTO_DRIVERS){
     wireDriverSortable(drv);
+    _attachDragHandleListeners(drv);
   }
 }
 
@@ -3144,6 +3159,8 @@ function renderAllDriverCols(){
   }
   // Sortable tras insertar en DOM
   wireDriverSortables();
+  // Re-attach touch listeners (necesario tras innerHTML reset)
+  for(const drv of REPARTO_DRIVERS){ _attachDragHandleListeners(drv); }
 }
 
 // ── Construir columna completa ────────────────────────────────────────────
@@ -3259,6 +3276,7 @@ function renderDriverColBody(driver){
   const newCol = buildDriverCol(driver);
   oldCol.replaceWith(newCol);
   wireDriverSortable(driver);
+  _attachDragHandleListeners(driver);
   refreshRepartoStopNumbers(driver);
 }
 
