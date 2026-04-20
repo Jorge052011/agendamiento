@@ -1,0 +1,25 @@
+{
+  "departure_points": [
+    {
+      "id": "dp1773229600547",
+      "name": "Casa Jorge",
+      "address": "Av. Laguna Grande 1120, casa 36, 4131711 Concepción, San Pedro de la Paz, Bío Bío, Chile",
+      "formatted_address": "Av. Laguna Grande 1120, casa 36, 4131711 Concepción, San Pedro de la Paz, Bío Bío, Chile",
+      "place_id": ""
+    },
+    {
+      "id": "dp1773229636067",
+      "name": "Casa Diego",
+      "address": "Díaz de Solis 1879, 4090482 Concepción, Bío Bío, Chile",
+      "formatted_address": "Díaz de Solis 1879, 4090482 Concepción, Bío Bío, Chile",
+      "place_id": ""
+    },
+    {
+      "id": "dp1773229896436",
+      "name": "Bodega Central",
+      "address": "Cam. los Carros 1955, 4030000 Concepción, Bío Bío, Chile",
+      "formatted_address": "Cam. los Carros 1955, 4030000 Concepción, Bío Bío, Chile",
+      "place_id": ""
+    }
+  ]
+}

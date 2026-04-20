@@ -1,8 +1,7 @@
+venv/
 .env
-*.json
 __pycache__/
 *.pyc
-*.pyo
 db.sqlite3
-.venv/
-venv/
+nohup.out
+*.bak
